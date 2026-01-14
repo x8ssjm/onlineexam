@@ -26,9 +26,7 @@ function navActive(string $view, string $activeView): string {
       <a class="nav-link <?= navActive("dashboard",$activeView) ?>" href="index.php?view=dashboard">
         <i class="bi bi-speedometer2 me-2"></i>Dashboard
       </a>
-      <a class="nav-link <?= navActive("banks",$activeView) ?>" href="index.php?view=banks">
-        <i class="bi bi-collection me-2"></i>Question Banks
-      </a>
+
       <a class="nav-link <?= navActive("questions",$activeView) ?>" href="index.php?view=questions">
         <i class="bi bi-question-circle me-2"></i>Questions
       </a>
@@ -44,9 +42,34 @@ function navActive(string $view, string $activeView): string {
       <a class="nav-link <?= navActive("scores",$activeView) ?>" href="index.php?view=scores">
         <i class="bi bi-bar-chart-line me-2"></i>Scores
       </a>
+      <hr class="border-secondary border-opacity-25 my-1">
+      <a class="nav-link" href="updates.php">
+        <i class="bi bi-gear-wide-connected me-2"></i>Updates
+      </a>
     </nav>
 
     <div class="mt-auto">
+      <div class="text-center small text-secondary mb-3 border-top border-secondary border-opacity-25 pt-2">
+         <div id="serverClock" class="mono fw-bold text-light"></div>
+         <div class="xm-small" style="font-size:0.75rem"><?= date('D, M j, Y') ?></div>
+      </div>
+      <script>
+        (function(){
+            // Initial server time (approx)
+            let serverTime = new Date("<?= date('Y-m-d H:i:s') ?>").getTime();
+            function updateClock(){
+                serverTime += 1000;
+                const d = new Date(serverTime);
+                const h = String(d.getHours()).padStart(2,'0');
+                const m = String(d.getMinutes()).padStart(2,'0');
+                const s = String(d.getSeconds()).padStart(2,'0');
+                document.getElementById('serverClock').textContent = `${h}:${m}:${s}`;
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+        })();
+      </script>
+
       <hr class="border-secondary border-opacity-25">
       <div class="small text-secondary">
         Signed in as <span class="text-light"><?= htmlspecialchars($_SESSION["admin_username"] ?? "admin") ?></span>
@@ -77,7 +100,7 @@ function navActive(string $view, string $activeView): string {
       <div class="offcanvas-body">
         <div class="list-group" id="mobileNavList">
           <a class="list-group-item list-group-item-action <?= navActive("dashboard",$activeView) ?>" href="index.php?view=dashboard">Dashboard</a>
-          <a class="list-group-item list-group-item-action <?= navActive("banks",$activeView) ?>" href="index.php?view=banks">Question Banks</a>
+
           <a class="list-group-item list-group-item-action <?= navActive("questions",$activeView) ?>" href="index.php?view=questions">Questions</a>
           <a class="list-group-item list-group-item-action <?= navActive("students",$activeView) ?>" href="index.php?view=students">Students</a>
           <a class="list-group-item list-group-item-action <?= navActive("exams",$activeView) ?>" href="index.php?view=exams">Exams</a>
