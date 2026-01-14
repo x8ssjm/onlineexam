@@ -7,7 +7,7 @@ $title = "System Update • Admin";
 require_once __DIR__ . "/includes/header.php";
 
 // Define the specific update to run
-$sql = "ALTER TABLE admins DROP COLUMN is_active";
+$sql = "ALTER TABLE students ADD COLUMN gender CHAR(1) NULL AFTER email";
 
 $msg = "";
 $status = "info";

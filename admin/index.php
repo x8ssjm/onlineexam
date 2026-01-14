@@ -2,6 +2,7 @@
 // admin/index.php
 declare(strict_types=1);
 
+require_once __DIR__ . "/../connection/db.php";
 require_once __DIR__ . "/includes/auth.php";
 
 start_secure_session();
@@ -57,9 +58,7 @@ if (!in_array($activeView, $valid, true)) $activeView = "dashboard";
   }
   ?>
 
-  <div class="small muted mt-3">
-    Note: this is a front-end demo (data stored in <span class="mono">localStorage</span>). For real security + multi-user live tracking, connect to a backend.
-  </div>
+
 </main>
 
 <!-- MODALS -->
@@ -297,19 +296,7 @@ function renderQuestions(){
 }
 
 function renderStudents(){
-  const tbody = els("studentsTbody");
-  if (!tbody) return;
-  tbody.innerHTML = state.students.map(s => `
-    <tr>
-      <td>${s.name}</td>
-      <td>${s.email}</td>
-      <td class="text-end mono small">${s.studentId}</td>
-      <td class="text-end">
-        <button class="btn btn-sm btn-outline-secondary" onclick="editStudent('${s.id}')"><i class="bi bi-pencil"></i></button>
-        <button class="btn btn-sm btn-outline-danger" onclick="delStudent('${s.id}')"><i class="bi bi-trash"></i></button>
-      </td>
-    </tr>
-  `).join("") || '<tr><td colspan="4" class="text-center muted">No students found</td></tr>';
+  // Handled server-side in pages/students.php
 }
 
 function renderExams(){
@@ -447,7 +434,7 @@ if(els("btnSeed")){
                 {id:"q1",bankId:"b1",text:"Capital of France?",marks:1,options:{A:"Berlin",B:"Madrid",C:"Paris",D:"Rome"},difficulty:"Easy",correctOption:"C"},
                 {id:"q2",bankId:"b1",text:"2+2=?",marks:1,options:{A:"3",B:"4",C:"5",D:"22"},difficulty:"Easy",correctOption:"B"}
             ],
-            students: [{id:"s1",name:"John Doe",email:"john@example.com",studentId:"S01"}],
+            students: [],
             exams: []
         };
         saveState(state);
