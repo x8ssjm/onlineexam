@@ -47,266 +47,22 @@ if (!in_array($activeView, $valid, true)) $activeView = "dashboard";
 
 <!-- Main -->
 <main class="container py-4">
-  <!-- Header row -->
-  <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
-    <div>
-      <h3 class="mb-0" id="pageTitle">Dashboard</h3>
-      <div class="muted" id="pageSubtitle">Overview and quick actions</div>
-    </div>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-secondary" id="btnResetDemo">
-        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Demo Data
-      </button>
-      <button class="btn btn-primary" id="btnSeed">
-        <i class="bi bi-lightning-charge me-1"></i> Load Sample Data
-      </button>
-    </div>
-  </div>
-
-  <!-- DASHBOARD -->
-  <section id="view-dashboard" class="view">
-    <!-- keep your existing dashboard blocks exactly -->
-    <div class="row g-3">
-      <div class="col-12 col-md-6 col-xl-3">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="muted small">Question Banks</div>
-              <div class="fs-3 fw-bold" id="kpiBanks">0</div>
-            </div>
-            <span class="badge rounded-pill badge-soft"><i class="bi bi-collection me-1"></i> Banks</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-md-6 col-xl-3">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="muted small">Questions</div>
-              <div class="fs-3 fw-bold" id="kpiQuestions">0</div>
-            </div>
-            <span class="badge rounded-pill badge-soft"><i class="bi bi-question-circle me-1"></i> MCQ</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-md-6 col-xl-3">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="muted small">Students</div>
-              <div class="fs-3 fw-bold" id="kpiStudents">0</div>
-            </div>
-            <span class="badge rounded-pill badge-soft"><i class="bi bi-people me-1"></i> Users</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-md-6 col-xl-3">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <div class="muted small">Ongoing Exams</div>
-              <div class="fs-3 fw-bold" id="kpiLive">0</div>
-            </div>
-            <span class="badge rounded-pill badge-soft"><i class="bi bi-broadcast me-1"></i> Live</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12 col-xl-7">
-        <div class="card p-3">
-          <div class="d-flex align-items-center justify-content-between">
-            <div>
-              <div class="fw-semibold">Live Exams</div>
-              <div class="muted small">Exams currently running + participants</div>
-            </div>
-            <button class="btn btn-outline-primary btn-sm" data-view-jump="live">
-              <i class="bi bi-broadcast me-1"></i>Open Live
-            </button>
-          </div>
-          <div class="mt-3" id="dashLiveList"></div>
-        </div>
-      </div>
-
-      <div class="col-12 col-xl-5">
-        <div class="card p-3">
-          <div class="fw-semibold">Quick Actions</div>
-          <div class="muted small mb-3">Create and manage core items</div>
-          <div class="d-grid gap-2">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalBank">+ Add Question Bank</button>
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalQuestion">+ Add Question</button>
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalStudent">+ Add Student</button>
-            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalExam">+ Create Exam</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- BANKS -->
-  <section id="view-banks" class="view d-none">
-    <div class="card p-3">
-      <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <div class="fw-semibold">Question Banks</div>
-          <div class="muted small">Add, rename, or delete banks</div>
-        </div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalBank">
-          <i class="bi bi-plus-lg me-1"></i> Add Bank
-        </button>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Bank Name</th>
-              <th class="text-end">Questions</th>
-              <th class="text-end">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="banksTbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- QUESTIONS -->
-  <section id="view-questions" class="view d-none">
-    <div class="card p-3">
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-        <div>
-          <div class="fw-semibold">Questions (MCQ)</div>
-          <div class="muted small">Add, edit, or delete questions; organize by bank</div>
-        </div>
-        <div class="d-flex gap-2">
-          <select class="form-select" id="filterBank" style="min-width:220px"></select>
-          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalQuestion">
-            <i class="bi bi-plus-lg me-1"></i> Add Question
-          </button>
-        </div>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Question</th>
-              <th>Bank</th>
-              <th class="text-end">Marks</th>
-              <th class="text-end">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="questionsTbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- STUDENTS -->
-  <section id="view-students" class="view d-none">
-    <div class="card p-3">
-      <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <div class="fw-semibold">Students</div>
-          <div class="muted small">Add, edit details, remove students</div>
-        </div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalStudent">
-          <i class="bi bi-plus-lg me-1"></i> Add Student
-        </button>
-      </div>
-
-      <div class="table-responsive">
-        <table class="table table-hover align-middle">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th class="text-end">Student ID</th>
-              <th class="text-end">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="studentsTbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- EXAMS -->
-  <section id="view-exams" class="view d-none">
-    <div class="row g-3">
-      <div class="col-12">
-        <div class="card p-3">
-          <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-            <div>
-              <div class="fw-semibold">Exams</div>
-              <div class="muted small">Create exams, assign students, set start/end time, run multiple exams</div>
-            </div>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalExam">
-              <i class="bi bi-plus-lg me-1"></i> Create Exam
-            </button>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover align-middle">
-              <thead>
-                <tr>
-                  <th>Exam</th>
-                  <th>Bank</th>
-                  <th>Schedule</th>
-                  <th class="text-end">Assigned</th>
-                  <th>Status</th>
-                  <th class="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="examsTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- LIVE -->
-  <section id="view-live" class="view d-none">
-    <div class="card p-3">
-      <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <div class="fw-semibold">Live Exams</div>
-          <div class="muted small">Monitor ongoing exams and participant counts</div>
-        </div>
-        <button class="btn btn-outline-primary btn-sm" id="btnRefreshLive">
-          <i class="bi bi-arrow-repeat me-1"></i> Refresh
-        </button>
-      </div>
-
-      <div id="liveList"></div>
-    </div>
-  </section>
-
-  <!-- SCORES -->
-  <section id="view-scores" class="view d-none">
-    <div class="card p-3">
-      <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <div class="fw-semibold">Scores</div>
-          <div class="muted small">Record and view scores per exam</div>
-        </div>
-        <select class="form-select" id="scoreExamSelect" style="max-width:340px"></select>
-      </div>
-
-      <div id="scoresPanel"></div>
-    </div>
-  </section>
+  <?php
+  // Dynamic include
+  $file = __DIR__ . "/pages/{$activeView}.php";
+  if (file_exists($file)) {
+      require_once $file;
+  } else {
+      echo "<div class='alert alert-danger'>View not found: " . htmlspecialchars($activeView) . "</div>";
+  }
+  ?>
 
   <div class="small muted mt-3">
     Note: this is a front-end demo (data stored in <span class="mono">localStorage</span>). For real security + multi-user live tracking, connect to a backend.
   </div>
 </main>
 
-<!-- MODALS (keep your exact modals) -->
+<!-- MODALS -->
 <!-- Bank Modal -->
 <div class="modal fade" id="modalBank" tabindex="-1">
   <div class="modal-dialog">
@@ -456,7 +212,6 @@ if (!in_array($activeView, $valid, true)) $activeView = "dashboard";
 <?php require_once __DIR__ . "/includes/footer.php"; ?>
 
 <script>
-// ===== Your original JS (fixed + keeps demo localStorage) =====
 const LS_KEY = "oep_admin_data_v1";
 const els = (id) => document.getElementById(id);
 const uuid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
@@ -493,48 +248,353 @@ function examStatus(exam){
 }
 function getLiveExams(){ return state.exams.filter(e => examStatus(e).label === "Ongoing"); }
 
-const views = ["dashboard","banks","questions","students","exams","live","scores"];
-
-function showView(view){
-  views.forEach(v=>{
-    const el = document.getElementById("view-"+v);
-    el.classList.toggle("d-none", v !== view);
-  });
-
-  const titles = {
-    dashboard: ["Dashboard","Overview and quick actions"],
-    banks: ["Question Banks","Create and manage banks"],
-    questions: ["Questions","Add, edit, delete MCQs"],
-    students: ["Students","Add, edit details, remove students"],
-    exams: ["Exams","Schedule and manage multiple exams"],
-    live: ["Live Exams","Monitor ongoing exams and participants"],
-    scores: ["Scores","Record and view exam scores"]
-  };
-
-  els("pageTitle").textContent = titles[view][0];
-  els("pageSubtitle").textContent = titles[view][1];
-
-  renderAll();
-}
+// --- Render Functions (Safeguarded) ---
 
 function renderKPIs(){
-  els("kpiBanks").textContent = state.banks.length;
-  els("kpiQuestions").textContent = state.questions.length;
-  els("kpiStudents").textContent = state.students.length;
-  els("kpiLive").textContent = getLiveExams().length;
+  if(els("kpiBanks")) els("kpiBanks").textContent = state.banks.length;
+  if(els("kpiQuestions")) els("kpiQuestions").textContent = state.questions.length;
+  if(els("kpiStudents")) els("kpiStudents").textContent = state.students.length;
+  if(els("kpiLive")) els("kpiLive").textContent = getLiveExams().length;
 }
 
-// ... keep the rest of your JS as-is (renderBanks/renderQuestions/etc.)
-// (your original JS block is fine after the saveState/loadState fix)
+function renderBanks(){
+  const tbody = els("banksTbody");
+  if (!tbody) return;
+  tbody.innerHTML = state.banks.map(b => `
+    <tr>
+      <td>${b.name}</td>
+      <td class="text-end">${questionsByBank(b.id).length}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-secondary" onclick="editBank('${b.id}')"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="delBank('${b.id}')"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>
+  `).join("") || '<tr><td colspan="3" class="text-center muted">No banks found</td></tr>';
+}
 
-// QUICK: I’m calling your original functions exactly as you had them,
-// so paste the remaining JS from your old file under this line.
+function renderQuestions(){
+  const tbody = els("questionsTbody");
+  if (!tbody) return;
+
+  const filter = els("filterBank").value;
+  let list = state.questions;
+  if(filter) list = list.filter(q => q.bankId === filter);
+
+  tbody.innerHTML = list.map(q => `
+    <tr>
+      <td>
+        <div class="fw-semibold text-truncate" style="max-width:300px">${q.text}</div>
+        <div class="small muted">Ans: ${q.correctOption} | Diff: ${q.difficulty}</div>
+      </td>
+      <td>${bankNameById(q.bankId)}</td>
+      <td class="text-end">${q.marks}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-secondary" onclick="editQuestion('${q.id}')"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="delQuestion('${q.id}')"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>
+  `).join("") || '<tr><td colspan="4" class="text-center muted">No questions found</td></tr>';
+}
+
+function renderStudents(){
+  const tbody = els("studentsTbody");
+  if (!tbody) return;
+  tbody.innerHTML = state.students.map(s => `
+    <tr>
+      <td>${s.name}</td>
+      <td>${s.email}</td>
+      <td class="text-end mono small">${s.studentId}</td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-secondary" onclick="editStudent('${s.id}')"><i class="bi bi-pencil"></i></button>
+        <button class="btn btn-sm btn-outline-danger" onclick="delStudent('${s.id}')"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>
+  `).join("") || '<tr><td colspan="4" class="text-center muted">No students found</td></tr>';
+}
+
+function renderExams(){
+  const tbody = els("examsTbody");
+  if(!tbody) return;
+
+  tbody.innerHTML = state.exams.map(e => {
+    const st = examStatus(e);
+    return `
+    <tr>
+      <td>
+        <div class="fw-semibold">${e.name}</div>
+        <div class="small muted">${e.mode === 'immediate' ? 'Immediate' : 'Scheduled'}</div>
+      </td>
+      <td>${bankNameById(e.bankId)}</td>
+      <td class="small">
+        <div>Start: ${new Date(e.startAt).toLocaleString()}</div>
+        <div>End: ${new Date(e.endAt).toLocaleString()}</div>
+      </td>
+      <td class="text-end">${e.assigned?.length||0}</td>
+      <td><span class="badge bg-${st.cls}">${st.label}</span></td>
+      <td class="text-end">
+        <button class="btn btn-sm btn-outline-danger" onclick="delExam('${e.id}')"><i class="bi bi-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join("") || '<tr><td colspan="6" class="text-center muted">No exams found</td></tr>';
+}
+
+function renderLive(){
+  const container = els("liveList");
+  if(!container && !els("dashLiveList")) return;
+
+  const live = getLiveExams();
+  const html = live.map(e => `
+    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+      <div>
+        <div class="fw-bold">${e.name}</div>
+        <div class="small muted">Ends: ${new Date(e.endAt).toLocaleTimeString()}</div>
+      </div>
+      <div class="text-end">
+        <div class="fs-5 fw-bold text-primary">0</div>
+        <div class="small muted">Active</div>
+      </div>
+    </div>
+  `).join("") || '<div class="text-center muted py-3">No active exams right now.</div>';
+
+  if(container) container.innerHTML = html;
+  if(els("dashLiveList")) els("dashLiveList").innerHTML = html;
+}
+
+function renderScores(){
+  const panel = els("scoresPanel");
+  if(!panel) return;
+  // Placeholder logic
+  const sel = els("scoreExamSelect");
+  const eid = sel.value;
+  if(!eid) { panel.innerHTML = "<div class='text-center muted py-5'>Select an exam to view scores</div>"; return; }
+  
+  panel.innerHTML = "<div class='alert alert-info'>Score tracking requires backend participation tracking.</div>";
+}
+
+function populateSelects(){
+  // Bank Select for Filter (Questions Page)
+  const filter = els("filterBank");
+  if(filter) {
+    const curr = filter.value;
+    filter.innerHTML = '<option value="">All Banks</option>' + state.banks.map(b => `<option value="${b.id}">${b.name}</option>`).join("");
+    filter.value = curr;
+    filter.onchange = renderQuestions;
+  }
+  
+  // Bank Select for Modal (Question)
+  const qBank = els("qBank");
+  if(qBank) qBank.innerHTML = state.banks.map(b => `<option value="${b.id}">${b.name}</option>`).join("");
+  
+  // Bank Select for Modal (Exam)
+  const eBank = els("eBank");
+  if(eBank) {
+    eBank.innerHTML = state.banks.map(b => `<option value="${b.id}">${b.name}</option>`).join("");
+    eBank.onchange = function(){ els("eTotal").value = calcTotalMarks(this.value); };
+  }
+
+  // Student Checkboxes for Modal (Exam)
+  const grid = els("studentCheckboxGrid");
+  if(grid) {
+    grid.innerHTML = state.students.map(s => `
+      <div class="col-6">
+        <div class="form-check">
+          <input class="form-check-input student-check" type="checkbox" value="${s.id}" id="sc_${s.id}">
+          <label class="form-check-label small" for="sc_${s.id}">${s.name}</label>
+        </div>
+      </div>
+    `).join("");
+
+    // listener for count
+    grid.querySelectorAll(".student-check").forEach(ch => {
+      ch.addEventListener("change", () => {
+        els("assignedCount").textContent = grid.querySelectorAll(".student-check:checked").length;
+      });
+    });
+  }
+  
+  // Exam Select for Scores
+  const sSel = els("scoreExamSelect");
+  if(sSel){
+     sSel.innerHTML = '<option value="">Select Exam...</option>' + state.exams.map(e=>`<option value="${e.id}">${e.name}</option>`).join("");
+     sSel.onchange = renderScores;
+  }
+}
+
+function renderAll(){
+  populateSelects();
+  renderKPIs();
+  renderBanks();
+  renderQuestions();
+  renderStudents();
+  renderExams();
+  renderLive();
+  renderScores();
+}
+
+// --- CRUD & Actions ---
+
+// ... (Rest of CRUD logics: saveBank, delBank, saveQuestion etc. - copied from before but verifying safety not strictly needed as they are triggered by Modals which exist globally)
+// wait, modals exist globally, so saveBank is safe TO CALL.
+// BUT saveBank calls renderBanks() at the end. renderBanks() is safe now. so we are good.
+
+// Seed Data
+if(els("btnSeed")){
+    els("btnSeed").onclick = () => {
+        if(!confirm("Load sample data? Overwrites current.")) return;
+        state = {
+            banks: [{id:"b1",name:"General Knowledge"},{id:"b2",name:"Math 101"}],
+            questions: [
+                {id:"q1",bankId:"b1",text:"Capital of France?",marks:1,options:{A:"Berlin",B:"Madrid",C:"Paris",D:"Rome"},difficulty:"Easy",correctOption:"C"},
+                {id:"q2",bankId:"b1",text:"2+2=?",marks:1,options:{A:"3",B:"4",C:"5",D:"22"},difficulty:"Easy",correctOption:"B"}
+            ],
+            students: [{id:"s1",name:"John Doe",email:"john@example.com",studentId:"S01"}],
+            exams: []
+        };
+        saveState(state);
+        renderAll();
+    };
+}
+if(els("btnResetDemo")){
+    els("btnResetDemo").onclick = () => {
+        if(confirm("Clear all data?")) { localStorage.removeItem(LS_KEY); location.reload(); }
+    };
+}
+if(els("btnRefreshLive")) els("btnRefreshLive").onclick = renderLive;
+
+
+// --- Modal Handlers ---
+
+// Bank
+const mb = els("modalBank");
+if(mb){
+    mb.addEventListener("show.bs.modal", () => {
+        els("bankForm").reset(); els("bankId").value=""; els("bankModalTitle").textContent="Add Question Bank";
+    });
+    els("bankForm").onsubmit = (e) => {
+        e.preventDefault();
+        const id = els("bankId").value || uuid();
+        const name = els("bankName").value;
+        if(!els("bankId").value) state.banks.push({id,name});
+        else { const b = state.banks.find(x=>x.id===id); if(b) b.name=name; }
+        saveState(state);
+        bootstrap.Modal.getInstance(mb).hide();
+        renderAll();
+    };
+}
+window.editBank = (id) => {
+    const b = state.banks.find(x=>x.id===id);
+    if(!b) return;
+    els("bankId").value=b.id; els("bankName").value=b.name;
+    els("bankModalTitle").textContent="Edit Question Bank";
+    new bootstrap.Modal(mb).show();
+};
+window.delBank = (id) => {
+    if(!confirm("Delete this bank and all its questions?")) return;
+    state.banks = state.banks.filter(x=>x.id!==id);
+    state.questions = state.questions.filter(x=>x.bankId!==id);
+    saveState(state); renderAll();
+};
+
+// Question
+const mq = els("modalQuestion");
+if(mq){
+    mq.addEventListener("show.bs.modal", () => {
+        els("questionForm").reset(); els("qId").value=""; els("questionModalTitle").textContent="Add Question";
+        populateSelects(); // ensure bank list is fresh
+    });
+    els("questionForm").onsubmit = (e) => {
+        e.preventDefault();
+        const id = els("qId").value || uuid();
+        const q = {
+            id,
+            bankId: els("qBank").value,
+            text: els("qText").value,
+            marks: els("qMarks").value,
+            difficulty: els("qDiff").value,
+            correctOption: els("qCorrect").value,
+            options: { A:els("qA").value, B:els("qB").value, C:els("qC").value, D:els("qD").value }
+        };
+        if(!els("qId").value) state.questions.push(q);
+        else { const idx = state.questions.findIndex(x=>x.id===id); if(idx>-1) state.questions[idx]=q; }
+        saveState(state);
+        bootstrap.Modal.getInstance(mq).hide();
+        renderAll();
+    };
+}
+window.editQuestion = (id) => {
+    const q = state.questions.find(x=>x.id===id);
+    if(!q) return;
+    els("qId").value=q.id; els("qBank").value=q.bankId; els("qText").value=q.text;
+    els("qMarks").value=q.marks; els("qDiff").value=q.difficulty; els("qCorrect").value=q.correctOption;
+    els("qA").value=q.options.A; els("qB").value=q.options.B; els("qC").value=q.options.C; els("qD").value=q.options.D;
+    els("questionModalTitle").textContent="Edit Question";
+    new bootstrap.Modal(mq).show();
+};
+window.delQuestion = (id) => {
+    if(confirm("Delete question?")) { state.questions = state.questions.filter(x=>x.id!==id); saveState(state); renderAll(); }
+};
+
+// Student
+const ms = els("modalStudent");
+if(ms){
+    ms.addEventListener("show.bs.modal", () => {
+        els("studentForm").reset(); els("sId").value=""; els("studentModalTitle").textContent="Add Student";
+    });
+    els("studentForm").onsubmit = (e) => {
+        e.preventDefault();
+        const id = els("sId").value || uuid();
+        const s = { id, name: els("sName").value, email: els("sEmail").value, studentId: els("sStudentId").value };
+        if(!els("sId").value) state.students.push(s);
+        else { const idx = state.students.findIndex(x=>x.id===id); if(idx>-1) state.students[idx]=s; }
+        saveState(state);
+        bootstrap.Modal.getInstance(ms).hide();
+        renderAll();
+    };
+}
+window.editStudent = (id) => {
+    const s = state.students.find(x=>x.id===id);
+    if(!s) return;
+    els("sId").value=s.id; els("sName").value=s.name; els("sEmail").value=s.email; els("sStudentId").value=s.studentId;
+    els("studentModalTitle").textContent="Edit Student";
+    new bootstrap.Modal(ms).show();
+};
+window.delStudent = (id) => {
+    if(confirm("Delete student?")) { state.students = state.students.filter(x=>x.id!==id); saveState(state); renderAll(); }
+};
+
+// Exam
+const me = els("modalExam");
+if(me){
+    me.addEventListener("show.bs.modal", () => {
+        els("examForm").reset(); els("eId").value=""; els("examModalTitle").textContent="Create Exam";
+        populateSelects(); els("assignedCount").textContent="0";
+    });
+    els("examForm").onsubmit = (e) => {
+        e.preventDefault();
+        const id = els("eId").value || uuid();
+        const assigned = Array.from(document.querySelectorAll(".student-check:checked")).map(c=>c.value);
+        const ex = {
+            id,
+            name: els("eName").value,
+            bankId: els("eBank").value,
+            startAt: els("eStart").value,
+            endAt: els("eEnd").value,
+            mode: els("eMode").value,
+            assigned
+        };
+        state.exams.push(ex);
+        saveState(state);
+        bootstrap.Modal.getInstance(me).hide();
+        renderAll();
+    }; // (Edit exam logic omitted for brevity in original, can add if needed)
+}
+window.delExam = (id) => {
+    if(confirm("Delete exam?")) { state.exams = state.exams.filter(x=>x.id!==id); saveState(state); renderAll(); }
+};
+
+
+// Initial Render
+renderAll();
 </script>
-
-<script>
-// Boot the view from PHP (?view=...)
-showView(<?= json_encode($activeView) ?>);
-</script>
-
 </body>
 </html>
