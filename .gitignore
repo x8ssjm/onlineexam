@@ -1,0 +1,11 @@
+# System
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Dependencies
+/vendor/
+/node_modules/
