@@ -9,7 +9,7 @@ start_secure_session();
 require_admin();
 
 $activeView = $_GET["view"] ?? "dashboard";
-$valid = ["dashboard","banks","questions","students","exams","live","scores"];
+$valid = ["dashboard","banks","questions","students","exams","live","scores","settings"];
 if (!in_array($activeView, $valid, true)) $activeView = "dashboard";
 ?>
 <!doctype html>
@@ -22,6 +22,7 @@ if (!in_array($activeView, $valid, true)) $activeView = "dashboard";
   <!-- Bootstrap + Icons -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
   <style>
     :root { --sidebar-w: 280px; }
@@ -583,5 +584,6 @@ window.delExam = (id) => {
 // Initial Render
 renderAll();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </body>
 </html>

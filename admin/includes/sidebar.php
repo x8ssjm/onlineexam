@@ -42,10 +42,10 @@ function navActive(string $view, string $activeView): string {
       <a class="nav-link <?= navActive("scores",$activeView) ?>" href="index.php?view=scores">
         <i class="bi bi-bar-chart-line me-2"></i>Scores
       </a>
-      <hr class="border-secondary border-opacity-25 my-1">
-      <a class="nav-link" href="updates.php">
-        <i class="bi bi-gear-wide-connected me-2"></i>Updates
+      <a class="nav-link <?= navActive("settings",$activeView) ?>" href="index.php?view=settings">
+        <i class="bi bi-envelope-at me-2"></i>Email Settings
       </a>
+
     </nav>
 
     <div class="mt-auto">
@@ -106,6 +106,7 @@ function navActive(string $view, string $activeView): string {
           <a class="list-group-item list-group-item-action <?= navActive("exams",$activeView) ?>" href="index.php?view=exams">Exams</a>
           <a class="list-group-item list-group-item-action <?= navActive("live",$activeView) ?>" href="index.php?view=live">Live Exams</a>
           <a class="list-group-item list-group-item-action <?= navActive("scores",$activeView) ?>" href="index.php?view=scores">Scores</a>
+          <a class="list-group-item list-group-item-action <?= navActive("settings",$activeView) ?>" href="index.php?view=settings">Email Settings</a>
         </div>
       </div>
     </div>

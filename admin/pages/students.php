@@ -2,6 +2,26 @@
 // Handle Bulk Insert
 $msg = "";
 $err = "";
+if(isset($_GET['status'])) {
+    if($_GET['status'] == 'deleted') $msg = "Student removed successfully.";
+    if($_GET['status'] == 'reset') $msg = "Password reset & sent to email.";
+}
+
+// Fetch EmailJS Settings
+$settings_res = $conn->query("SELECT * FROM settings");
+$email_settings = [];
+if($settings_res) {
+    while ($row = $settings_res->fetch_assoc()) {
+        $email_settings[$row['setting_key']] = $row['setting_value'];
+    }
+}
+$ejs_pub_reg = $email_settings['reg_public_key'] ?? '';
+$ejs_srv_reg = $email_settings['reg_service_id'] ?? '';
+$ejs_tpl_reg = $email_settings['reg_template_id'] ?? '';
+
+$ejs_pub_rst = $email_settings['reset_public_key'] ?? '';
+$ejs_srv_rst = $email_settings['reset_service_id'] ?? '';
+$ejs_tpl_rst = $email_settings['reset_template_id'] ?? '';
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["action"] === "bulk_add") {
     $prefix = trim($_POST["prefix"] ?? "STU");
@@ -10,9 +30,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
     $studentsData = $_POST["students"] ?? [];
     $inserted = 0;
     $failed = 0;
-    
+
+    $sendCreds = isset($_POST["send_creds"]);
+    $newStudents = []; // For EmailJS
+
     if (is_array($studentsData)) {
-        $stmt = $conn->prepare("INSERT INTO students (full_name, email, gender, student_id) VALUES (?, ?, ?, ?)");
+        $stmt = $conn->prepare("INSERT INTO students (full_name, email, gender, student_id, password) VALUES (?, ?, ?, ?, ?)");
         
         foreach ($studentsData as $row) {
             $name = trim($row['name'] ?? '');
@@ -26,16 +49,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
                 $failed++; continue;
             }
             
-            // Generate Unique ID
+            // Generate Unique ID & Password
             $sid = "";
+            $plainPass = substr(str_shuffle("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 0, 8);
+            $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
+            
             $added = false;
             for ($i=0; $i<5; $i++) {
                 $sid = $prefix . str_pad((string)mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
                 try {
-                    $stmt->bind_param("ssss", $name, $email, $gender, $sid);
+                    $stmt->bind_param("sssss", $name, $email, $gender, $sid, $hashedPass);
                     if ($stmt->execute()) {
                         $inserted++;
                         $added = true;
+                        if ($sendCreds) {
+                            $newStudents[] = [
+                                'name' => $name, 
+                                'email' => $email, 
+                                'password' => $plainPass,
+                                'student_id' => $sid
+                            ];
+                        }
                         break;
                     }
                 } catch (Exception $e) {
@@ -48,6 +82,56 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
     
     if ($inserted > 0) $msg = "Successfully added $inserted students.";
     if ($failed > 0) $err = "Failed to add $failed rows (duplicates or errors).";
+}
+
+// Handle Email Check (AJAX)
+if (isset($_POST["action"]) && $_POST["action"] === "check_email") {
+    // Determine if we need to include DB (direct access case)
+    if (!isset($conn)) {
+        require_once __DIR__ . "/../includes/auth.php";
+        start_secure_session();
+        if (empty($_SESSION["admin_id"])) { echo "error"; exit; }
+        require_once __DIR__ . "/../../connection/db.php";
+    }
+
+    $email = trim($_POST["email"] ?? "");
+    if (empty($email)) {
+        echo "invalid"; exit;
+    }
+    
+    $stmt = $conn->prepare("SELECT id FROM students WHERE email = ? LIMIT 1");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $stmt->store_result();
+    echo $stmt->num_rows > 0 ? "exists" : "ok";
+    exit;
+}
+
+// Handle Reset Password
+if (isset($_POST["action"]) && $_POST["action"] === "reset_pass") {
+    require_once __DIR__ . "/../includes/auth.php";
+    start_secure_session();
+    
+    if (empty($_SESSION["admin_id"])) {
+        header('HTTP/1.1 401 Unauthorized');
+        echo json_encode(['status'=>'error', 'message'=>'Unauthorized']);
+        exit;
+    }
+    
+    require_once __DIR__ . "/../../connection/db.php";
+
+    $uid = (int)$_POST["id"];
+    $plainPass = substr(str_shuffle("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 0, 8);
+    $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
+    
+    $stmt = $conn->prepare("UPDATE students SET password=? WHERE id=?");
+    $stmt->bind_param("si", $hashedPass, $uid);
+    if ($stmt->execute()) {
+        echo json_encode(['status'=>'success', 'new_pass'=>$plainPass]);
+    } else {
+        echo json_encode(['status'=>'error', 'message'=>'Database error']);
+    }
+    exit;
 }
 
 // Handle Edit
@@ -75,7 +159,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
 if (isset($_GET["del"])) {
     $delId = (int)$_GET["del"];
     $conn->query("DELETE FROM students WHERE id=$delId");
-    echo "<script>location.href='index.php?view=students';</script>"; 
+    echo "<script>location.href='index.php?view=students&status=deleted';</script>"; 
     exit;
 }
 
@@ -123,13 +207,24 @@ if ($res) while ($r = $res->fetch_assoc()) $students[] = $r;
                                     <td><?= htmlspecialchars($s['email']) ?></td>
                                     <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($s['gender'] ?? '-') ?></span></td>
                                     <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-warning me-1" 
+                                            onclick="handleResetPassword(this)"
+                                            data-id="<?= $s['id'] ?>"
+                                            data-name="<?= htmlspecialchars($s['full_name'], ENT_QUOTES) ?>"
+                                            data-email="<?= htmlspecialchars($s['email'], ENT_QUOTES) ?>"
+                                            title="Reset Password">
+                                            <i class="bi bi-key"></i>
+                                        </button>
                                         <button class="btn btn-sm btn-outline-secondary me-1" 
-                                            onclick="openEditModal(<?= htmlspecialchars(json_encode($s)) ?>)">
+                                            onclick="openEditModal(<?= htmlspecialchars(json_encode($s), ENT_QUOTES) ?>)"
+                                            title="Edit Student">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <a href="index.php?view=students&del=<?= $s['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this student?')">
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                            onclick="confirmDelete(<?= $s['id'] ?>, '<?= htmlspecialchars($s['full_name'], ENT_QUOTES) ?>')"
+                                            title="Delete Student">
                                             <i class="bi bi-trash"></i>
-                                        </a>
+                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -165,6 +260,11 @@ if ($res) while ($r = $res->fetch_assoc()) $students[] = $r;
                     <i class="bi bi-plus-circle me-1"></i> Add Row
                 </button>
             </div>
+        </div>
+        
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="chkSendCreds" name="send_creds" checked>
+            <label class="form-check-label" for="chkSendCreds">Send login credentials to students via Email</label>
         </div>
 
         <div class="table-responsive border rounded" style="max-height: 50vh; overflow-y: auto;">
@@ -280,7 +380,7 @@ function addStudentRow() {
             </div>
         </td>
         <td class="text-center">
-            <button type="button" class="btn btn-sm btn-light text-danger" onclick="this.closest('tr').remove()"><i class="bi bi-x-lg"></i></button>
+            <button type="button" class="btn btn-sm btn-light text-danger" onclick="this.closest('tr').remove(); validateBulkForm();"><i class="bi bi-x-lg"></i></button>
         </td>
     `;
     tbody.appendChild(tr);
@@ -301,6 +401,247 @@ window.addEventListener('DOMContentLoaded', () => {
         addStudentRow();
     }
 });
+// Clean up stray script tags above
 </script>
 
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+<script>
+// No global init, using per-call authorization below
 
+
+// Restore Registration Email Logic
+function sendWelcomeEmails(students) {
+    if (!students || students.length === 0) return;
+    
+    Swal.fire({
+        title: 'Sending Welcome Emails...',
+        text: `Processing ${students.length} students. Please wait...`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+    });
+
+    let sent = 0;
+    let failed = 0;
+    
+    const sendNext = (index) => {
+        if (index >= students.length) {
+            Swal.fire({
+                icon: (failed === 0) ? 'success' : 'info',
+                title: 'Registration Complete',
+                text: `Successfully added students. Emails sent: ${sent}${failed > 0 ? ', Failed: ' + failed : ''}`
+            }).then(() => {
+                window.location.href = 'index.php?view=students';
+            });
+            return;
+        }
+
+        const s = students[index];
+        emailjs.send("<?= $ejs_srv_reg ?>", "<?= $ejs_tpl_reg ?>", {
+            to_name: s.name,
+            to_email: s.email,
+            password: s.password,
+            student_id: s.student_id
+        }, "<?= $ejs_pub_reg ?>").then(() => {
+            sent++;
+            sendNext(index + 1);
+        }).catch(err => {
+            console.error("Welcome email failed for", s.email, err);
+            failed++;
+            sendNext(index + 1);
+        });
+    };
+
+    sendNext(0);
+}
+
+// Improved Password Reset Logic
+function handleResetPassword(btn) {
+    const id = btn.getAttribute('data-id');
+    const name = btn.getAttribute('data-name');
+    const email = btn.getAttribute('data-email');
+
+    if (!email || email === "null") {
+        Swal.fire('Error', 'This student has no email address associated.', 'error');
+        return;
+    }
+
+    Swal.fire({
+        title: 'Reset Password?',
+        text: `Reset and send new credentials to ${name}?`,
+        icon: 'warning',
+        width: 350,
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, reset and email'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Resetting...',
+                text: 'Updating database and sending email...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const formData = new FormData();
+            formData.append('action', 'reset_pass');
+            formData.append('id', id);
+            
+            fetch('pages/students.php', { method: 'POST', body: formData })
+            .then(r => r.json())
+            .then(res => {
+                if(res.status === 'success') {
+                    // Send Email - Using dynamic reset-specific settings including Public Key
+                    emailjs.send("<?= $ejs_srv_rst ?>", "<?= $ejs_tpl_rst ?>", {
+                        to_name: name,
+                        to_email: email,
+                        password: res.new_pass
+                    }, "<?= $ejs_pub_rst ?>").then(() => {
+                        // Success Redirect
+                        window.location.href = 'index.php?view=students&status=reset';
+                    }).catch(err => {
+                        console.error('EmailJS Failed:', err);
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Email Failed',
+                            text: 'The password was reset in the database, but the notification email failed to send.',
+                            footer: 'EmailJS Error: ' + (err.text || JSON.stringify(err))
+                        });
+                        // IMPORTANT: No redirect here to avoid false success message
+                    });
+                } else {
+                    Swal.fire('Error', res.message, 'error');
+                }
+            })
+            .catch(e => Swal.fire('Error', 'Request failed: ' + e, 'error'));
+        }
+    });
+}
+
+function confirmDelete(id, name) {
+    Swal.fire({
+        title: 'Delete Student?',
+        text: `Remove ${name}?`,
+        icon: 'warning',
+        width: 320,
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = `index.php?view=students&del=${id}`;
+        }
+    });
+}
+
+// Trigger Registration Emails if PHP processed a bulk add
+<?php if (!empty($newStudents)): ?>
+window.addEventListener('DOMContentLoaded', () => {
+    sendWelcomeEmails(<?= json_encode($newStudents) ?>);
+});
+<?php endif; ?>
+
+// --- Validation Logic ---
+const btnSave = document.querySelector('#modalBulkStudent button[type="submit"]');
+
+document.addEventListener('input', (e) => {
+    if(e.target.closest('#bulkRows')) validateBulkForm();
+});
+document.addEventListener('change', (e) => {
+    if(e.target.closest('#bulkRows')) validateBulkForm();
+});
+
+function validateBulkForm() {
+    const rows = document.querySelectorAll('#bulkRows tr');
+    let allValid = true;
+    let hasRows = rows.length > 0;
+
+    if (!hasRows) allValid = false;
+
+    rows.forEach(tr => {
+        const nameInput = tr.querySelector('input[placeholder="Name"]');
+        const emailInput = tr.querySelector('input[placeholder="Email"]');
+        if(!nameInput || !emailInput) return;
+
+        const name = nameInput.value.trim();
+        const email = emailInput.value.trim();
+        const genderM = tr.querySelector('input[value="M"]').checked;
+        const genderF = tr.querySelector('input[value="F"]').checked;
+        
+        if (!name || !email || (!genderM && !genderF)) allValid = false;
+        if (emailInput.classList.contains('is-invalid')) allValid = false;
+    });
+    
+    if(btnSave) btnSave.disabled = !allValid;
+}
+
+// Debounce for email check
+let emailTimeout;
+document.addEventListener('input', (e) => {
+    if(e.target.closest('#bulkRows') && e.target.type === 'email') {
+        clearTimeout(emailTimeout);
+        const input = e.target;
+        input.classList.remove('is-invalid', 'is-valid');
+        
+        emailTimeout = setTimeout(() => {
+            checkEmailDuplicate(input);
+        }, 500);
+    }
+});
+
+function checkEmailDuplicate(input) {
+    const email = input.value.trim();
+    if(!email) return;
+
+    const allEmails = Array.from(document.querySelectorAll('#bulkRows input[type="email"]'))
+        .filter(el => el !== input)
+        .map(el => el.value.trim());
+    
+    if(allEmails.includes(email)) {
+        markInvalid(input, "Duplicate in list");
+        validateBulkForm();
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('action', 'check_email');
+    fd.append('email', email);
+
+    fetch('pages/students.php', { method: 'POST', body: fd })
+    .then(r => r.text())
+    .then(res => {
+        if(res === 'exists') {
+            markInvalid(input, "Email already registered");
+        } else if (res === 'ok') {
+            input.classList.add('is-valid');
+            input.classList.remove('is-invalid');
+            const next = input.nextElementSibling;
+            if(next && next.classList.contains('invalid-feedback')) next.remove();
+        }
+        validateBulkForm();
+    });
+}
+
+function markInvalid(input, msg) {
+    input.classList.add('is-invalid');
+    input.classList.remove('is-valid');
+    let feed = input.nextElementSibling;
+    if(!feed || !feed.classList.contains('invalid-feedback')) {
+        feed = document.createElement('div');
+        feed.className = 'invalid-feedback';
+        input.parentNode.appendChild(feed);
+    }
+    feed.textContent = msg;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    validateBulkForm();
+    const params = new URLSearchParams(window.location.search);
+    if(params.has('status')) {
+        const url = new URL(window.location);
+        url.searchParams.delete('status');
+        window.history.replaceState({}, '', url.toString());
+    }
+});
+</script>
