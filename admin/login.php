@@ -15,7 +15,7 @@ if (!empty($_SESSION["admin_id"])) {
 $info = "";
 $error = "";
 
-if (isset($_GET["timeout"])) $info = "Session expired due to inactivity. Please log in again.";
+if (isset($_GET["timeout"])) $info = "Session expired. Please log in again.";
 if (isset($_GET["logged_out"])) $info = "You have been logged out.";
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
