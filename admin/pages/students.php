@@ -1,4 +1,54 @@
 <?php
+// Handle Email Check (AJAX)
+if (isset($_POST["action"]) && $_POST["action"] === "check_email") {
+    // Determine if we need to include DB (direct access case)
+    if (!isset($conn)) {
+        require_once __DIR__ . "/../includes/auth.php";
+        start_secure_session();
+        if (empty($_SESSION["admin_id"])) { echo "error"; exit; }
+        require_once __DIR__ . "/../../connection/db.php";
+    }
+
+    $email = trim($_POST["email"] ?? "");
+    if (empty($email)) {
+        echo "invalid"; exit;
+    }
+    
+    $stmt = $conn->prepare("SELECT id FROM students WHERE email = ? LIMIT 1");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $stmt->store_result();
+    echo $stmt->num_rows > 0 ? "exists" : "ok";
+    exit;
+}
+
+// Handle Reset Password
+if (isset($_POST["action"]) && $_POST["action"] === "reset_pass") {
+    require_once __DIR__ . "/../includes/auth.php";
+    start_secure_session();
+    
+    if (empty($_SESSION["admin_id"])) {
+        header('HTTP/1.1 401 Unauthorized');
+        echo json_encode(['status'=>'error', 'message'=>'Unauthorized']);
+        exit;
+    }
+    
+    require_once __DIR__ . "/../../connection/db.php";
+
+    $uid = (int)$_POST["id"];
+    $plainPass = substr(str_shuffle("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 0, 8);
+    $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
+    
+    $stmt = $conn->prepare("UPDATE students SET password=? WHERE id=?");
+    $stmt->bind_param("si", $hashedPass, $uid);
+    if ($stmt->execute()) {
+        echo json_encode(['status'=>'success', 'new_pass'=>$plainPass]);
+    } else {
+        echo json_encode(['status'=>'error', 'message'=>'Database error']);
+    }
+    exit;
+}
+
 // Handle Bulk Insert
 $msg = "";
 $err = "";
@@ -84,55 +134,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
     if ($failed > 0) $err = "Failed to add $failed rows (duplicates or errors).";
 }
 
-// Handle Email Check (AJAX)
-if (isset($_POST["action"]) && $_POST["action"] === "check_email") {
-    // Determine if we need to include DB (direct access case)
-    if (!isset($conn)) {
-        require_once __DIR__ . "/../includes/auth.php";
-        start_secure_session();
-        if (empty($_SESSION["admin_id"])) { echo "error"; exit; }
-        require_once __DIR__ . "/../../connection/db.php";
-    }
-
-    $email = trim($_POST["email"] ?? "");
-    if (empty($email)) {
-        echo "invalid"; exit;
-    }
-    
-    $stmt = $conn->prepare("SELECT id FROM students WHERE email = ? LIMIT 1");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $stmt->store_result();
-    echo $stmt->num_rows > 0 ? "exists" : "ok";
-    exit;
-}
-
-// Handle Reset Password
-if (isset($_POST["action"]) && $_POST["action"] === "reset_pass") {
-    require_once __DIR__ . "/../includes/auth.php";
-    start_secure_session();
-    
-    if (empty($_SESSION["admin_id"])) {
-        header('HTTP/1.1 401 Unauthorized');
-        echo json_encode(['status'=>'error', 'message'=>'Unauthorized']);
-        exit;
-    }
-    
-    require_once __DIR__ . "/../../connection/db.php";
-
-    $uid = (int)$_POST["id"];
-    $plainPass = substr(str_shuffle("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 0, 8);
-    $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
-    
-    $stmt = $conn->prepare("UPDATE students SET password=? WHERE id=?");
-    $stmt->bind_param("si", $hashedPass, $uid);
-    if ($stmt->execute()) {
-        echo json_encode(['status'=>'success', 'new_pass'=>$plainPass]);
-    } else {
-        echo json_encode(['status'=>'error', 'message'=>'Database error']);
-    }
-    exit;
-}
 
 // Handle Edit
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["action"] === "edit_student") {
@@ -492,11 +493,19 @@ function handleResetPassword(btn) {
             .then(res => {
                 if(res.status === 'success') {
                     // Send Email - Using dynamic reset-specific settings including Public Key
-                    emailjs.send("<?= $ejs_srv_rst ?>", "<?= $ejs_tpl_rst ?>", {
+                    const ejsParams = {
                         to_name: name,
                         to_email: email,
                         password: res.new_pass
-                    }, "<?= $ejs_pub_rst ?>").then(() => {
+                    };
+                    console.log("Attempting EmailJS Send:", {
+                        service: "<?= $ejs_srv_rst ?>",
+                        template: "<?= $ejs_tpl_rst ?>",
+                        public_key: "<?= $ejs_pub_rst ?>",
+                        params: ejsParams
+                    });
+                    
+                    emailjs.send("<?= $ejs_srv_rst ?>", "<?= $ejs_tpl_rst ?>", ejsParams, "<?= $ejs_pub_rst ?>").then(() => {
                         // Success Redirect
                         window.location.href = 'index.php?view=students&status=reset';
                     }).catch(err => {

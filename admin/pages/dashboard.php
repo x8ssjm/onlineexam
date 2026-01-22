@@ -1,3 +1,11 @@
+<?php
+// Fetch KPIs
+$totalStudents = 0;
+if(isset($conn)){
+    $res = $conn->query("SELECT COUNT(*) FROM students");
+    if($res) $totalStudents = $res->fetch_row()[0];
+}
+?>
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
   <div>
     <h3 class="mb-0">Dashboard</h3>
@@ -43,7 +51,7 @@
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <div class="muted small">Students</div>
-          <div class="fs-3 fw-bold" id="kpiStudents">0</div>
+          <div class="fs-3 fw-bold" id="kpiStudents"><?= $totalStudents ?></div>
         </div>
         <span class="badge rounded-pill badge-soft"><i class="bi bi-people me-1"></i> Users</span>
       </div>

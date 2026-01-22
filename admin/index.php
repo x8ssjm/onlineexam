@@ -253,7 +253,7 @@ function getLiveExams(){ return state.exams.filter(e => examStatus(e).label === 
 function renderKPIs(){
   if(els("kpiBanks")) els("kpiBanks").textContent = state.banks.length;
   if(els("kpiQuestions")) els("kpiQuestions").textContent = state.questions.length;
-  if(els("kpiStudents")) els("kpiStudents").textContent = state.students.length;
+
   if(els("kpiLive")) els("kpiLive").textContent = getLiveExams().length;
 }
 
