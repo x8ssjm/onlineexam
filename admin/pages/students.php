@@ -5,7 +5,7 @@ if (isset($_POST["action"]) && $_POST["action"] === "check_email") {
     if (!isset($conn)) {
         require_once __DIR__ . "/../includes/auth.php";
         start_secure_session();
-        if (empty($_SESSION["admin_id"])) { echo "error"; exit; }
+        require_admin();
         require_once __DIR__ . "/../../connection/db.php";
     }
 
@@ -26,12 +26,7 @@ if (isset($_POST["action"]) && $_POST["action"] === "check_email") {
 if (isset($_POST["action"]) && $_POST["action"] === "reset_pass") {
     require_once __DIR__ . "/../includes/auth.php";
     start_secure_session();
-    
-    if (empty($_SESSION["admin_id"])) {
-        header('HTTP/1.1 401 Unauthorized');
-        echo json_encode(['status'=>'error', 'message'=>'Unauthorized']);
-        exit;
-    }
+    require_admin();
     
     require_once __DIR__ . "/../../connection/db.php";
 
