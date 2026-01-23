@@ -33,6 +33,9 @@ function navActive(string $view, string $activeView): string {
       <a class="nav-link <?= navActive("students",$activeView) ?>" href="index.php?view=students">
         <i class="bi bi-people me-2"></i>Students
       </a>
+      <a class="nav-link <?= navActive("groups",$activeView) ?>" href="index.php?view=groups">
+        <i class="bi bi-grid me-2"></i>Groups
+      </a>
       <a class="nav-link <?= navActive("exams",$activeView) ?>" href="index.php?view=exams">
         <i class="bi bi-calendar2-check me-2"></i>Exams
       </a>
@@ -60,10 +63,13 @@ function navActive(string $view, string $activeView): string {
             function updateClock(){
                 serverTime += 1000;
                 const d = new Date(serverTime);
-                const h = String(d.getHours()).padStart(2,'0');
+                let h = d.getHours();
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12;
+                h = h ? h : 12; // the hour '0' should be '12'
                 const m = String(d.getMinutes()).padStart(2,'0');
                 const s = String(d.getSeconds()).padStart(2,'0');
-                document.getElementById('serverClock').textContent = `${h}:${m}:${s}`;
+                document.getElementById('serverClock').textContent = `${h}:${m}:${s} ${ampm}`;
             }
             setInterval(updateClock, 1000);
             updateClock();
@@ -103,6 +109,7 @@ function navActive(string $view, string $activeView): string {
 
           <a class="list-group-item list-group-item-action <?= navActive("questions",$activeView) ?>" href="index.php?view=questions">Questions</a>
           <a class="list-group-item list-group-item-action <?= navActive("students",$activeView) ?>" href="index.php?view=students">Students</a>
+          <a class="list-group-item list-group-item-action <?= navActive("groups",$activeView) ?>" href="index.php?view=groups">Groups</a>
           <a class="list-group-item list-group-item-action <?= navActive("exams",$activeView) ?>" href="index.php?view=exams">Exams</a>
           <a class="list-group-item list-group-item-action <?= navActive("live",$activeView) ?>" href="index.php?view=live">Live Exams</a>
           <a class="list-group-item list-group-item-action <?= navActive("scores",$activeView) ?>" href="index.php?view=scores">Scores</a>
