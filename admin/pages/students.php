@@ -68,6 +68,7 @@ $ejs_pub_rst = $email_settings['reset_public_key'] ?? '';
 $ejs_srv_rst = $email_settings['reset_service_id'] ?? '';
 $ejs_tpl_rst = $email_settings['reset_template_id'] ?? '';
 
+
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["action"] === "bulk_add") {
     $prefix = trim($_POST["prefix"] ?? "STU");
     if(empty($prefix)) $prefix = "STU";
@@ -159,8 +160,8 @@ if (isset($_GET["del"])) {
     exit;
 }
 
-// Fetch Students
-$res = $conn->query("SELECT * FROM students ORDER BY id DESC");
+// Fetch Students with group names
+$res = $conn->query("SELECT s.*, g.group_name FROM students s LEFT JOIN `groups` g ON s.group_id = g.group_id ORDER BY s.id DESC");
 $students = [];
 if ($res) while ($r = $res->fetch_assoc()) $students[] = $r;
 ?>
@@ -188,6 +189,7 @@ if ($res) while ($r = $res->fetch_assoc()) $students[] = $r;
                             <th>Student ID</th>
                             <th>Name</th>
                             <th>Email</th>
+                            <th>Group</th>
                             <th>Gender</th>
                             <th class="text-end">Action</th>
                         </tr>
@@ -201,6 +203,13 @@ if ($res) while ($r = $res->fetch_assoc()) $students[] = $r;
                                     <td class="mono small"><?= htmlspecialchars($s['student_id']) ?></td>
                                     <td><?= htmlspecialchars($s['full_name']) ?></td>
                                     <td><?= htmlspecialchars($s['email']) ?></td>
+                                    <td>
+                                        <?php if($s['group_name']): ?>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2"><?= htmlspecialchars($s['group_name']) ?></span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">None</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><span class="badge bg-light text-dark border"><?= htmlspecialchars($s['gender'] ?? '-') ?></span></td>
                                     <td class="text-end">
                                         <button class="btn btn-sm btn-outline-warning me-1" 
@@ -252,8 +261,8 @@ if ($res) while ($r = $res->fetch_assoc()) $students[] = $r;
                 </div>
             </div>
             <div class="col-md-7 text-end pt-4">
-                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addStudentRow()">
-                    <i class="bi bi-plus-circle me-1"></i> Add Row
+                <button type="button" class="btn btn-outline-primary" onclick="addStudentRow()">
+                    <i class="bi bi-plus-lg me-1"></i> Add Row
                 </button>
             </div>
         </div>

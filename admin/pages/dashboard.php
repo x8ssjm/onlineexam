@@ -18,6 +18,11 @@ if(isset($conn)){
     // Questions
     $resQuestions = $conn->query("SELECT COUNT(*) FROM questions");
     if($resQuestions) $totalQuestions = $resQuestions->fetch_row()[0];
+
+    // Ongoing Exams
+    $now = date('Y-m-d H:i:s');
+    $resLive = $conn->query("SELECT COUNT(*) FROM exams WHERE '$now' BETWEEN start_time AND end_time");
+    $totalOngoing = ($resLive) ? $resLive->fetch_row()[0] : 0;
 }
 ?>
 <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3">
@@ -72,7 +77,7 @@ if(isset($conn)){
       <div class="d-flex justify-content-between align-items-start">
         <div>
           <div class="muted small">Ongoing Exams</div>
-          <div class="fs-3 fw-bold" id="kpiLive">0</div>
+          <div class="fs-3 fw-bold" id="kpiLive"><?= $totalOngoing ?></div>
         </div>
         <span class="badge rounded-pill badge-soft"><i class="bi bi-broadcast me-1"></i> Live</span>
       </div>
@@ -90,7 +95,32 @@ if(isset($conn)){
           <i class="bi bi-broadcast me-1"></i>Open Live
         </a>
       </div>
-      <div class="mt-3" id="dashLiveList"></div>
+      <div class="mt-3" id="dashLiveList">
+        <?php
+        $q_dash_live = "SELECT e.title, e.end_time,
+                        (SELECT COUNT(*) FROM exam_submissions WHERE exam_id = e.exam_id AND status = 'ongoing') as active,
+                        (SELECT COUNT(*) FROM exam_submissions WHERE exam_id = e.exam_id AND status = 'submitted') as finished
+                        FROM exams e
+                        WHERE '$now' BETWEEN e.start_time AND e.end_time
+                        LIMIT 5";
+        $res_dash_live = $conn->query($q_dash_live);
+        if($res_dash_live && $res_dash_live->num_rows > 0): 
+            while($dl = $res_dash_live->fetch_assoc()):
+        ?>
+            <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+                <div>
+                    <div class="small fw-bold"><?= htmlspecialchars($dl['title']) ?></div>
+                    <div class="text-muted" style="font-size: 11px;">Ends: <?= date('g:i A', strtotime($dl['end_time'])) ?></div>
+                </div>
+                <div class="text-end">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2"><?= $dl['active'] ?> Active</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 ms-1"><?= $dl['finished'] ?> Done</span>
+                </div>
+            </div>
+        <?php endwhile; else: ?>
+            <div class="p-3 text-center text-muted small">No exams are currently live.</div>
+        <?php endif; ?>
+      </div>
     </div>
   </div>
 
