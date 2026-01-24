@@ -1,6 +1,12 @@
 <?php
 // admin/pages/live.php
 // Monitor ongoing exams in real-time
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['end_exam_id'])) {
+    $eid = (int)$_POST['end_exam_id'];
+    $conn->query("UPDATE exams SET end_time = NOW() WHERE exam_id = $eid");
+    header("Location: " . $_SERVER['REQUEST_URI']);
+    exit;
+}
 
 $now = date('Y-m-d H:i:s');
 $q_live = "SELECT e.*, qb.bank_name,
@@ -51,15 +57,26 @@ $res_live = mysqli_query($conn, $q_live);
 
                         <div class="small muted mb-1 d-flex justify-content-between">
                             <span>Time Progress</span>
-                            <span>Ends at <?= date('H:i', strtotime($l['end_time'])) ?></span>
+                            <span>Ends at <?= date('g:i A', strtotime($l['end_time'])) ?></span>
                         </div>
                         <?php
                             $total_time = strtotime($l['end_time']) - strtotime($l['start_time']);
                             $elapsed = time() - strtotime($l['start_time']);
                             $percent = max(0, min(100, round(($elapsed / $total_time) * 100)));
+                            
+                            $canEnd = ($l['total_assigned'] > 0 && $l['finished'] >= $l['total_assigned']);
                         ?>
-                        <div class="progress" style="height: 8px;">
+                        <div class="progress mb-3" style="height: 8px;">
                             <div class="progress-bar bg-danger" role="progressbar" style="width: <?= $percent ?>%"></div>
+                        </div>
+                        
+                        <div class="text-end">
+                            <form method="POST" onsubmit="return confirm('Force end this exam? This will close access immediately.');">
+                                <input type="hidden" name="end_exam_id" value="<?= $l['exam_id'] ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" <?= $canEnd ? '' : 'disabled' ?>>
+                                    <i class="bi bi-stop-circle me-1"></i> End Exam
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>

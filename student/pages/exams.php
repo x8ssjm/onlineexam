@@ -3,13 +3,13 @@
 $student_id = $_SESSION['student_id'];
 
 // Fetch ongoing exams for this student's group (or all groups)
-$q_exams = "SELECT e.*, qb.bank_name 
+$q_exams = "SELECT e.*, qb.bank_name, sub.status as sub_status 
             FROM exams e 
-            JOIN students s ON (e.group_id = s.group_id OR e.group_id IS NULL)
+            JOIN students s ON (e.group_id = s.group_id OR e.group_id IS NULL OR e.group_id = 0)
             JOIN question_banks qb ON e.bank_id = qb.bank_id
+            LEFT JOIN exam_submissions sub ON (e.exam_id = sub.exam_id AND sub.student_id = $student_id)
             WHERE s.id = $student_id 
             AND NOW() BETWEEN e.start_time AND e.end_time
-            AND e.exam_id NOT IN (SELECT exam_id FROM exam_submissions WHERE student_id = $student_id AND status = 'submitted')
             ORDER BY e.start_time ASC";
 $res_exams = mysqli_query($conn, $q_exams);
 $res_exams = mysqli_query($conn, $q_exams);
@@ -25,7 +25,7 @@ $res_exams = mysqli_query($conn, $q_exams);
 <div class="row g-4">
     <?php if(mysqli_num_rows($res_exams) > 0): while($e = mysqli_fetch_assoc($res_exams)): ?>
     <div class="col-12 col-md-6 col-xl-4">
-        <div class="card p-4 h-100 exam-card border border-light" onclick="window.location.href='take_exam.php?id=<?= $e['exam_id'] ?>'">
+        <div class="card p-4 h-100 exam-card border border-light">
             <div class="d-flex justify-content-between align-items-start mb-3">
                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3">Ongoing</span>
                 <div class="small muted"><i class="bi bi-clock me-1"></i> <?= $e['duration'] ?> mins</div>
@@ -38,7 +38,14 @@ $res_exams = mysqli_query($conn, $q_exams);
                     <div class="fw-bold">Subject:</div>
                     <div class="muted"><?= htmlspecialchars($e['bank_name']) ?></div>
                 </div>
-                <button class="btn btn-primary btn-sm px-4 shadow-sm">Start Now</button>
+                
+                <?php if ($e['sub_status'] === 'submitted'): ?>
+                    <button class="btn btn-secondary btn-sm px-4 shadow-sm" disabled><i class="bi bi-check-circle me-1"></i> Submitted</button>
+                <?php elseif ($e['sub_status'] === 'ongoing'): ?>
+                    <button class="btn btn-warning btn-sm px-4 shadow-sm" onclick="window.location.href='take_exam.php?id=<?= $e['exam_id'] ?>'">Resume Exam</button>
+                <?php else: ?>
+                    <button class="btn btn-primary btn-sm px-4 shadow-sm" onclick="window.location.href='take_exam.php?id=<?= $e['exam_id'] ?>'">Start Now</button>
+                <?php endif; ?>
             </div>
         </div>
     </div>

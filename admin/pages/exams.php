@@ -146,6 +146,12 @@ if ($banks_res) while($b = mysqli_fetch_assoc($banks_res)) $banks[] = $b;
                 <td class="text-end">
                     <div class="d-flex gap-1 justify-content-end">
                         <!-- Edit Button -->
+                        <?php if($now > $e['end_time']): ?>
+                            <a href="index.php?view=scores&exam_id=<?= $e['exam_id'] ?>" class="btn btn-sm btn-outline-primary" title="View Results">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        <?php endif; ?>
+
                         <?php if($now < $e['start_time']): ?>
                             <button class="btn btn-sm btn-outline-secondary" onclick='openEditExamModal(<?= htmlspecialchars(json_encode($e), ENT_QUOTES) ?>)' title="Edit">
                                 <i class="bi bi-pencil"></i>

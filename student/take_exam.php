@@ -133,14 +133,19 @@ $timeLeft = $end - time();
                     <h5 class="fw-bold mb-4"><?= nl2br(htmlspecialchars($q['question_text'])) ?></h5>
                     
                     <div class="row g-3">
-                        <?php foreach ($q['shuffled_options'] as $opt): 
+                        <?php foreach ($q['shuffled_options'] as $oIdx => $opt): 
                             $isSelected = ($q['selected_option'] === $opt['key']);
+                            $displayLabel = chr(65 + $oIdx); // 0->A, 1->B, 2->C, 3->D
                         ?>
                         <div class="col-12 col-md-6">
                             <label class="option-btn d-flex align-items-center gap-2 <?= $isSelected ? 'selected' : '' ?>">
                                 <input type="radio" class="option-radio" name="ans_<?= $q['question_id'] ?>" value="<?= $opt['key'] ?>" 
                                        onchange="saveAnswer(<?= $q['question_id'] ?>, '<?= $opt['key'] ?>')" <?= $isAnswered ? 'disabled' : '' ?>>
-                                <span class="fw-bold"><?= $opt['key'] ?>.</span>
+                                <span class="fw-bold"><?= $displayLabel ?>.</span>
+                                
+                                <!-- Optional: Debug showing real key if needed, or just hidden -->
+                                <!-- <small class='text-muted'>(Real: <?= $opt['key'] ?>)</small> -->
+                                
                                 <span><?= htmlspecialchars($opt['val']) ?></span>
                             </label>
                         </div>

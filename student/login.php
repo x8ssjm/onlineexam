@@ -75,6 +75,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
               <i class="bi bi-eye" id="toggleIcon"></i>
             </span>
           </div>
+          <div class="text-end mt-2">
+            <a href="forgot_password.php" class="text-decoration-none small text-primary">Forgot Password?</a>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary w-100 mb-3">Login to Dashboard</button>
       </form>

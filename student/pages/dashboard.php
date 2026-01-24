@@ -59,7 +59,7 @@ if (isset($conn)) {
         <div class="card p-4">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h5 class="mb-0 fw-bold">Recent Activity</h5>
-                <a href="index.php?view=exams" class="btn btn-outline-primary btn-sm">View All Exams</a>
+                <a href="index.php?view=history" class="btn btn-outline-primary btn-sm">View All Exams</a>
             </div>
             
             <div class="table-responsive">

@@ -8,7 +8,7 @@ require_once __DIR__ . "/includes/auth.php";
 require_student_login();
 
 $view = $_GET['view'] ?? 'dashboard';
-$valid_views = ['dashboard', 'exams'];
+$valid_views = ['dashboard', 'exams', 'profile', 'history', 'upcoming'];
 if (!in_array($view, $valid_views)) $view = 'dashboard';
 
 require_once __DIR__ . "/includes/header.php";

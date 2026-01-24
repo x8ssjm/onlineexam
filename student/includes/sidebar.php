@@ -1,0 +1,80 @@
+<div class="sidebar d-flex flex-column flex-shrink-0 bg-white border-end position-fixed" 
+     style="width: var(--sidebar-width); top: var(--header-height); height: calc(100vh - var(--header-height)); z-index: 900; overflow-y: auto;">
+    
+    <div class="p-3">
+        <ul class="nav nav-pills flex-column mb-auto gap-1">
+          <li class="nav-item">
+            <a href="index.php?view=dashboard" class="nav-link <?= ($view === 'dashboard') ? 'active' : '' ?>">
+              <i class="bi bi-grid-fill me-2 opacity-75"></i>
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a href="index.php?view=exams" class="nav-link <?= ($view === 'exams') ? 'active' : '' ?>">
+              <i class="bi bi-play-circle-fill me-2 opacity-75"></i>
+              Active Exams
+            </a>
+          </li>
+          <li>
+            <a href="index.php?view=upcoming" class="nav-link <?= ($view === 'upcoming') ? 'active' : '' ?>">
+              <i class="bi bi-calendar-event-fill me-2 opacity-75"></i>
+              Upcoming Exams
+            </a>
+          </li>
+          <li>
+            <a href="index.php?view=history" class="nav-link <?= ($view === 'history') ? 'active' : '' ?>">
+              <i class="bi bi-clock-history me-2 opacity-75"></i>
+              Exam History
+            </a>
+          </li>
+          <li>
+            <a href="index.php?view=profile" class="nav-link <?= ($view === 'profile') ? 'active' : '' ?>">
+              <i class="bi bi-person-badge-fill me-2 opacity-75"></i>
+              My Profile
+            </a>
+          </li>
+        </ul>
+    </div>
+    
+    <div class="mt-auto border-top p-3">
+        <!-- User Profile (Optional, or just show text) -->
+        <div class="d-flex align-items-center mb-3 px-2">
+            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-2 fw-bold" style="width: 32px; height: 32px;">
+                <?= strtoupper(substr($_SESSION['student_name'] ?? 'U', 0, 1)) ?>
+            </div>
+            <div class="text-truncate small text-secondary" style="max-width: 140px;">
+                <?= htmlspecialchars($_SESSION['student_name'] ?? 'Student') ?>
+            </div>
+        </div>
+
+        <a href="logout.php" class="btn btn-outline-danger w-100 btn-sm">
+            <i class="bi bi-box-arrow-left me-1"></i> Logout
+        </a>
+    </div>
+</div>
+
+<style>
+/* CSS Variables are defined in header.php */
+.sidebar .nav-link {
+    font-weight: 500;
+    color: #4b5563;
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+}
+.sidebar .nav-link:hover {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+.sidebar .nav-link.active {
+    background-color: #e0e7ff; /* Lighter Indigo-ish */
+    color: #3730a3; /* Darker Indigo text */
+    font-weight: 600;
+}
+.sidebar .nav-link.active i {
+    color: #4f46e5;
+}
+</style>
