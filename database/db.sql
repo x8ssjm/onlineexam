@@ -2,6 +2,14 @@
 CREATE DATABASE IF NOT EXISTS online_exam_portal;
 USE online_exam_portal;
 
+-- Student Groups (Must be created before students)
+CREATE TABLE IF NOT EXISTS `groups` (
+    group_id INT AUTO_INCREMENT PRIMARY KEY,
+    group_name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Table for storing student information
 CREATE TABLE IF NOT EXISTS students (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,15 +60,8 @@ CREATE TABLE IF NOT EXISTS questions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (bank_id) REFERENCES question_banks(bank_id) ON DELETE CASCADE
 );
--- Exams Table
--- Student Groups
-CREATE TABLE IF NOT EXISTS `groups` (
-    group_id INT AUTO_INCREMENT PRIMARY KEY,
-    group_name VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
+-- Exams Table
 CREATE TABLE IF NOT EXISTS exams (
     exam_id INT AUTO_INCREMENT PRIMARY KEY,
     bank_id INT NOT NULL,
