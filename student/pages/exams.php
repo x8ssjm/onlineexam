@@ -2,16 +2,15 @@
 // user/pages/exams.php
 $student_id = $_SESSION['student_id'];
 
-// Fetch ongoing exams for this student's group (or all groups)
+// Fetch ongoing exams for this student
 $q_exams = "SELECT e.*, qb.bank_name, sub.status as sub_status 
             FROM exams e 
-            JOIN students s ON (e.group_id = s.group_id OR e.group_id IS NULL OR e.group_id = 0)
+            JOIN exam_assignments ea ON e.exam_id = ea.exam_id
             JOIN question_banks qb ON e.bank_id = qb.bank_id
             LEFT JOIN exam_submissions sub ON (e.exam_id = sub.exam_id AND sub.student_id = $student_id)
-            WHERE s.id = $student_id 
+            WHERE ea.student_id = $student_id 
             AND NOW() BETWEEN e.start_time AND e.end_time
             ORDER BY e.start_time ASC";
-$res_exams = mysqli_query($conn, $q_exams);
 $res_exams = mysqli_query($conn, $q_exams);
 ?>
 

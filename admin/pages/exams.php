@@ -16,10 +16,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['save_exam'])) {
     $negative = (float)$_POST['negative_marking'];
     $group_id = !empty($_POST['group_id']) ? (int)$_POST['group_id'] : 'NULL';
 
+    // Validation
+    if ($duration < 1) { header("Location: index.php?view=exams&error=Duration must be at least 1 minute"); exit; }
+    if ($passing_marks < 0) { header("Location: index.php?view=exams&error=Passing marks cannot be negative"); exit; }
+    if ($weight < 0) { header("Location: index.php?view=exams&error=Question weight cannot be negative"); exit; }
+    if ($negative < 0) { header("Location: index.php?view=exams&error=Negative marking cannot be negative"); exit; }
+    
     // Calculate end_time
     $end_time = date('Y-m-d H:i:s', strtotime("$start_time + $duration minutes"));
 
     if ($exam_id > 0) {
+        // Edit Mode: Update exam details
+        // Note: Changing group_id does NOT remove old assignments, but we might want to ADD new ones?
+        // User said: "use the group only to assign multiple numbers of students to an exam at once"
+        // So let's treat group_id as a "Add students from this group" action.
+
         // Server-side check: Only allow editing if the exam is still 'upcoming'
         $check_status = mysqli_query($conn, "SELECT status FROM exams WHERE exam_id=$exam_id");
         $exam_data = mysqli_fetch_assoc($check_status);
@@ -29,24 +40,57 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['save_exam'])) {
             exit;
         }
 
+        // We update the metadata (title etc) and the 'Target Group' label, but actual permissions are now in exam_assignments
         $query = "UPDATE exams SET bank_id=$bank_id, group_id=$group_id, title='$title', description='$description', start_time='$start_time', end_time='$end_time', duration=$duration, passing_marks=$passing_marks, question_weight=$weight, negative_marking=$negative WHERE exam_id=$exam_id";
+        
+        if (mysqli_query($conn, $query)) {
+            // If group_id changed or re-selected, we should ensure those students are assigned
+            // We do INSERT IGNORE to avoid duplicates
+            if ($group_id > 0) {
+                 mysqli_query($conn, "INSERT IGNORE INTO exam_assignments (exam_id, student_id) SELECT $exam_id, id FROM students WHERE group_id = $group_id");
+            } else {
+                 // All Students
+                 mysqli_query($conn, "INSERT IGNORE INTO exam_assignments (exam_id, student_id) SELECT $exam_id, id FROM students");
+            }
+            // Sync statuses
+            syncExamStatus($conn);
+            header("Location: index.php?view=exams&success=Exam updated");
+            exit;
+        } else {
+            $error = mysqli_error($conn);
+        }
+
     } else {
+        // Create Mode
         $query = "INSERT INTO exams (bank_id, group_id, title, description, start_time, end_time, duration, passing_marks, question_weight, negative_marking) 
                   VALUES ($bank_id, $group_id, '$title', '$description', '$start_time', '$end_time', $duration, $passing_marks, $weight, $negative)";
-    }
-
-    if (mysqli_query($conn, $query)) {
-        // Sync statuses for all exams
-        mysqli_query($conn, "UPDATE exams SET status = 'upcoming' WHERE start_time > NOW()");
-        mysqli_query($conn, "UPDATE exams SET status = 'ongoing' WHERE NOW() BETWEEN start_time AND end_time");
-        mysqli_query($conn, "UPDATE exams SET status = 'completed' WHERE end_time < NOW()");
         
-        $eid = ($exam_id > 0) ? $exam_id : mysqli_insert_id($conn);
-        header("Location: index.php?view=exams&success=" . ($exam_id > 0 ? "Exam updated" : "Exam created"));
-        exit;
-    } else {
-        $error = mysqli_error($conn);
+        if (mysqli_query($conn, $query)) {
+            $new_exam_id = mysqli_insert_id($conn);
+            
+            // Assign Students
+            if ($group_id > 0) {
+                mysqli_query($conn, "INSERT INTO exam_assignments (exam_id, student_id) SELECT $new_exam_id, id FROM students WHERE group_id = $group_id");
+            } else {
+                // All Students
+                mysqli_query($conn, "INSERT INTO exam_assignments (exam_id, student_id) SELECT $new_exam_id, id FROM students");
+            }
+
+            // Sync statuses
+            syncExamStatus($conn);
+            
+            header("Location: index.php?view=exams&success=Exam created");
+            exit;
+        } else {
+            $error = mysqli_error($conn);
+        }
     }
+}
+
+function syncExamStatus($conn) {
+    mysqli_query($conn, "UPDATE exams SET status = 'upcoming' WHERE start_time > NOW()");
+    mysqli_query($conn, "UPDATE exams SET status = 'ongoing' WHERE NOW() BETWEEN start_time AND end_time");
+    mysqli_query($conn, "UPDATE exams SET status = 'completed' WHERE end_time < NOW()");
 }
 
 
@@ -228,7 +272,7 @@ if ($banks_res) while($b = mysqli_fetch_assoc($banks_res)) $banks[] = $b;
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Passing Marks</label>
-                <input type="number" step="0.1" name="passing_marks" id="exam_pass" class="form-control" required>
+                <input type="number" step="0.1" name="passing_marks" id="exam_pass" class="form-control" min="0" required>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Start Date & Time</label>
@@ -236,11 +280,11 @@ if ($banks_res) while($b = mysqli_fetch_assoc($banks_res)) $banks[] = $b;
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Weight/Question</label>
-                <input type="number" step="0.1" name="question_weight" id="exam_weight" class="form-control" value="1.0" required>
+                <input type="number" step="0.1" name="question_weight" id="exam_weight" class="form-control" value="1.0" min="0.1" required>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Negative Marking</label>
-                <input type="number" step="0.1" name="negative_marking" id="exam_neg" class="form-control" value="0.0" required>
+                <input type="number" step="0.1" name="negative_marking" id="exam_neg" class="form-control" value="0.0" min="0" required>
             </div>
         </div>
       </div>
@@ -305,13 +349,32 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateExamForm() {
         const title = document.getElementById('exam_title').value.trim();
         const bank = document.getElementById('exam_bank').value;
-        const group = document.getElementById('exam_group').value;
+        const group = document.getElementById('exam_group').value; // Can be empty for 'All'
         const start = document.getElementById('exam_start').value;
-        const duration = document.getElementById('exam_duration').value;
-        const pass = document.getElementById('exam_pass').value;
+        const duration = parseFloat(document.getElementById('exam_duration').value);
+        const pass = parseFloat(document.getElementById('exam_pass').value);
+        const weight = parseFloat(document.getElementById('exam_weight').value);
+        const neg = parseFloat(document.getElementById('exam_neg').value);
         
-        const isValid = title && bank && group && start && duration && pass;
-        if(btnSaveExam) btnSaveExam.disabled = !isValid;
+        // Basic required check
+        let isValid = title && bank && start && !isNaN(duration) && !isNaN(pass) && !isNaN(weight) && !isNaN(neg);
+
+        // Value checks
+        if (duration < 1) isValid = false;
+        if (pass < 0) isValid = false;
+        if (weight <= 0) isValid = false;
+        if (neg < 0) isValid = false;
+
+        // Date check (only for new exams or if changing start time to past)
+        // Simple check: Start time shouldn't be empty. 
+        // Strict future check is annoying for editing, so we trust reasonable inputs but block obviously empty ones.
+
+        if(btnSaveExam) {
+            btnSaveExam.disabled = !isValid;
+            if(!isValid) {
+                // optional: add visual feedback or tooltip
+            }
+        }
     }
 
     document.getElementById('modalExam').addEventListener('input', validateExamForm);

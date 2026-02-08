@@ -3,10 +3,9 @@
 declare(strict_types=1);
 require_once __DIR__ . "/../connection/db.php";
 require_once __DIR__ . "/includes/auth.php";
+require_once __DIR__ . "/../includes/Mailer.php"; // Include the Mailer class
 
-
-
-
+use App\Mailer;
 
 $message = "";
 $error = "";
@@ -24,72 +23,44 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $res = $stmt->get_result();
         
         if ($student = $res->fetch_assoc()) {
-            // 2. Fetch EmailJS Settings
-            $settings_res = $conn->query("SELECT * FROM settings");
-            $email_settings = [];
-            if($settings_res) {
-                while ($row = $settings_res->fetch_assoc()) {
-                    $email_settings[$row['setting_key']] = $row['setting_value'];
-                }
-            }
+            // 2. Generate new password
+            // 2. Generate new password (8 chars, 1 upper, 1 lower, 1 number)
+            $u = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            $l = "abcdefghijklmnopqrstuvwxyz";
+            $d = "0123456789";
+            $plainPass = substr(str_shuffle($u),0,1) . substr(str_shuffle($l),0,1) . substr(str_shuffle($d),0,1) . substr(str_shuffle($u.$l.$d),0,5);
+            $plainPass = str_shuffle($plainPass);
+            $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
             
-            $service_id = $email_settings['reset_service_id'] ?? '';
-            $template_id = $email_settings['reset_template_id'] ?? '';
-            $public_key = $email_settings['reset_public_key'] ?? ''; // This is 'user_id' in API
+            $upd = $conn->prepare("UPDATE students SET password = ? WHERE id = ?");
+            $upd->bind_param("si", $hashedPass, $student['id']);
             
-            if ($service_id && $template_id && $public_key) {
-                // 3. Reset Password
-                $plainPass = substr(str_shuffle("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 0, 8);
-                $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
-                
-                $upd = $conn->prepare("UPDATE students SET password = ? WHERE id = ?");
-                $upd->bind_param("si", $hashedPass, $student['id']);
-                
-                if ($upd->execute()) {
-                    // 4. Send Email via EmailJS API
-                    $data = [
-                        'service_id' => $service_id,
-                        'template_id' => $template_id,
-                        'user_id' => $public_key,
-                        'template_params' => [
-                            'to_name' => $student['full_name'],
-                            'to_email' => $email,
-                            'password' => $plainPass
-                        ]
-                    ];
-                    
-                    $ch = curl_init('https://api.emailjs.com/api/v1.0/email/send');
-                    curl_setopt($ch, CURLOPT_POST, 1);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                        'Content-Type: application/json',
-                        'Origin: http://' . $_SERVER['HTTP_HOST'] // Attempt to simulate origin
-                    ]);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    // Disable SSL verification for local WAMP usage
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    
-                    $response = curl_exec($ch);
-                    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    
-                    if (curl_errno($ch)) {
-                        $curlErr = curl_error($ch);
-                        $error = "Failed to connect to email service: " . htmlspecialchars($curlErr);
-                    } else {
-                        if ($httpCode === 200 || $httpCode === 201 || trim($response) === 'OK') {
-                             $message = "A new password has been sent to your email address.";
-                        } else {
-                            // capture the actual error from EmailJS
-                            $error = "Email Server Error ($httpCode): " . htmlspecialchars($response);
-                        }
-                    }
-                    curl_close($ch);
+            if ($upd->execute()) {
+                // 3. Send Email via Mailer
+                $mailer = new Mailer($conn);
+                $subject = "Password Reset - Online Exam Portal";
+                $body = "
+                    Hello {$student['full_name']},<br><br>
+                    your password has been reset successfully<br><br>
+                    your new password: <strong>{$plainPass}</strong><br><br>
+                    Please login and change if needed.<br>
+                    Regards,<br>
+                    Online Exam Portal
+                ";
 
+                $result = $mailer->send($email, $student['full_name'], $subject, $body);
+
+                if ($result['success']) {
+                     // Invalidate session to force re-login
+                     session_unset();
+                     session_destroy();
+                     $message = "A new password has been sent to your email address. You have been logged out.";
                 } else {
-                    $error = "Database error. Please try again.";
+                    $error = $result['message'];
                 }
+
             } else {
-                $error = "Email system configuration missing. Please contact admin.";
+                $error = "Database error. Please try again.";
             }
 
         } else {

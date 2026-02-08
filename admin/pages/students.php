@@ -1,17 +1,32 @@
 <?php
+// admin/pages/students.php
+
+// Determine if we need to include DB (direct access case)
+if (!isset($conn)) {
+    require_once __DIR__ . "/../includes/auth.php";
+    start_secure_session();
+    require_admin();
+    require_once __DIR__ . "/../../connection/db.php";
+}
+
+// Include Mailer
+require_once __DIR__ . "/../../includes/Mailer.php";
+use App\Mailer;
+
 // Handle Email Check (AJAX)
 if (isset($_POST["action"]) && $_POST["action"] === "check_email") {
-    // Determine if we need to include DB (direct access case)
-    if (!isset($conn)) {
-        require_once __DIR__ . "/../includes/auth.php";
-        start_secure_session();
-        require_admin();
-        require_once __DIR__ . "/../../connection/db.php";
-    }
-
+    // Suppress errors for AJAX
+    error_reporting(0);
+    @ini_set('display_errors', 0);
+    
     $email = trim($_POST["email"] ?? "");
     if (empty($email)) {
         echo "invalid"; exit;
+    }
+    
+    // Ensure DB connection if not already present
+    if (!isset($conn)) {
+        // ... handled above but just in case
     }
     
     $stmt = $conn->prepare("SELECT id FROM students WHERE email = ? LIMIT 1");
@@ -22,24 +37,60 @@ if (isset($_POST["action"]) && $_POST["action"] === "check_email") {
     exit;
 }
 
-// Handle Reset Password
+// Handle Reset Password (AJAX)
 if (isset($_POST["action"]) && $_POST["action"] === "reset_pass") {
-    require_once __DIR__ . "/../includes/auth.php";
-    start_secure_session();
-    require_admin();
-    
-    require_once __DIR__ . "/../../connection/db.php";
+    // Suppress errors for AJAX response
+    error_reporting(0);
+    @ini_set('display_errors', 0);
+    header('Content-Type: application/json');
 
-    $uid = (int)$_POST["id"];
-    $plainPass = substr(str_shuffle("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 0, 8);
-    $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
-    
-    $stmt = $conn->prepare("UPDATE students SET password=? WHERE id=?");
-    $stmt->bind_param("si", $hashedPass, $uid);
-    if ($stmt->execute()) {
-        echo json_encode(['status'=>'success', 'new_pass'=>$plainPass]);
-    } else {
-        echo json_encode(['status'=>'error', 'message'=>'Database error']);
+    try {
+        $uid = (int)$_POST["id"];
+        
+        // 1. Get Student Info
+        $stmt = $conn->prepare("SELECT full_name, email FROM students WHERE id = ?");
+        $stmt->bind_param("i", $uid);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        
+        if ($student = $res->fetch_assoc()) {
+            $u = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            $l = "abcdefghijklmnopqrstuvwxyz";
+            $d = "0123456789";
+            $plainPass = substr(str_shuffle($u),0,1) . substr(str_shuffle($l),0,1) . substr(str_shuffle($d),0,1) . substr(str_shuffle($u.$l.$d),0,5);
+            $plainPass = str_shuffle($plainPass);
+            $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
+            
+            $upd = $conn->prepare("UPDATE students SET password=? WHERE id=?");
+            $upd->bind_param("si", $hashedPass, $uid);
+            
+            if ($upd->execute()) {
+                 // 2. Send Email via Mailer
+                 $mailer = new Mailer($conn);
+                 $subject = "Password Reset - Online Exam Portal";
+                 $body = "
+                    Hello {$student['full_name']},<br><br>
+                    your password has been reset successfully<br><br>
+                    your new password: <strong>{$plainPass}</strong><br><br>
+                    Please login and change if needed.<br>
+                    Regards,<br>
+                    Online Exam Portal
+                ";
+                 $result = $mailer->send($student['email'], $student['full_name'], $subject, $body);
+                 
+                 if ($result['success']) {
+                     echo json_encode(['status'=>'success']);
+                 } else {
+                     echo json_encode(['status'=>'success', 'warning'=>'Password reset but email failed: ' . $result['message']]);
+                 }
+            } else {
+                echo json_encode(['status'=>'error', 'message'=>'Database error']);
+            }
+        } else {
+            echo json_encode(['status'=>'error', 'message'=>'Student not found']);
+        }
+    } catch (Throwable $e) {
+        echo json_encode(['status'=>'error', 'message'=>'Server error: ' . $e->getMessage()]);
     }
     exit;
 }
@@ -49,25 +100,7 @@ $msg = "";
 $err = "";
 if(isset($_GET['status'])) {
     if($_GET['status'] == 'deleted') $msg = "Student removed successfully.";
-    if($_GET['status'] == 'reset') $msg = "Password reset & sent to email.";
 }
-
-// Fetch EmailJS Settings
-$settings_res = $conn->query("SELECT * FROM settings");
-$email_settings = [];
-if($settings_res) {
-    while ($row = $settings_res->fetch_assoc()) {
-        $email_settings[$row['setting_key']] = $row['setting_value'];
-    }
-}
-$ejs_pub_reg = $email_settings['reg_public_key'] ?? '';
-$ejs_srv_reg = $email_settings['reg_service_id'] ?? '';
-$ejs_tpl_reg = $email_settings['reg_template_id'] ?? '';
-
-$ejs_pub_rst = $email_settings['reset_public_key'] ?? '';
-$ejs_srv_rst = $email_settings['reset_service_id'] ?? '';
-$ejs_tpl_rst = $email_settings['reset_template_id'] ?? '';
-
 
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["action"] === "bulk_add") {
     $prefix = trim($_POST["prefix"] ?? "STU");
@@ -76,12 +109,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
     $studentsData = $_POST["students"] ?? [];
     $inserted = 0;
     $failed = 0;
+    $emailCount = 0;
 
     $sendCreds = isset($_POST["send_creds"]);
-    $newStudents = []; // For EmailJS
+    $mailer = new Mailer($conn);
 
     if (is_array($studentsData)) {
-        $stmt = $conn->prepare("INSERT INTO students (full_name, email, gender, student_id, password) VALUES (?, ?, ?, ?, ?)");
+        // Updated INSERT to include login_token and token_expiry
+        $stmt = $conn->prepare("INSERT INTO students (full_name, email, gender, student_id, password, login_token, token_expiry) VALUES (?, ?, ?, ?, ?, ?, ?)");
         
         foreach ($studentsData as $row) {
             $name = trim($row['name'] ?? '');
@@ -97,24 +132,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
             
             // Generate Unique ID & Password
             $sid = "";
-            $plainPass = substr(str_shuffle("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"), 0, 8);
+            $u = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            $l = "abcdefghijklmnopqrstuvwxyz";
+            $d = "0123456789";
+            $plainPass = substr(str_shuffle($u),0,1) . substr(str_shuffle($l),0,1) . substr(str_shuffle($d),0,1) . substr(str_shuffle($u.$l.$d),0,5);
+            $plainPass = str_shuffle($plainPass);
             $hashedPass = password_hash($plainPass, PASSWORD_DEFAULT);
             
             $added = false;
             for ($i=0; $i<5; $i++) {
                 $sid = $prefix . str_pad((string)mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                $token = bin2hex(random_bytes(32));
+                $expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+                
                 try {
-                    $stmt->bind_param("sssss", $name, $email, $gender, $sid, $hashedPass);
+                    $stmt->bind_param("sssssss", $name, $email, $gender, $sid, $hashedPass, $token, $expiry);
                     if ($stmt->execute()) {
                         $inserted++;
                         $added = true;
+                        
                         if ($sendCreds) {
-                            $newStudents[] = [
-                                'name' => $name, 
-                                'email' => $email, 
-                                'password' => $plainPass,
-                                'student_id' => $sid
-                            ];
+                             $subject = "Welcome to Online Exam Portal";
+                             // Determine base URL dynamically
+                             $protocol = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http";
+                             $host = $_SERVER['HTTP_HOST'];
+                             $pathParts = explode('/', $_SERVER['SCRIPT_NAME']);
+                             array_pop($pathParts); // index.php
+                             array_pop($pathParts); // admin
+                             $webRoot = implode('/', $pathParts);
+                             $magicLink = $protocol . "://" . $host . $webRoot . "/student/login_token.php?token=" . $token;
+
+                             $body = "
+                                <h3>Welcome, {$name}!</h3>
+                                <p>Your account has been created successfully.</p>
+                                <p><strong>Student ID:</strong> {$sid}</p>
+                                <p><strong>Password:</strong> {$plainPass}</p>
+                                <br>
+                                <div style='text-align: center; margin: 20px 0;'>
+                                    <a href='{$magicLink}' style='background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;'>Login to Dashboard</a>
+                                </div>
+                                <p style='font-size: 12px; color: #666;'>Or copy this link: <a href='{$magicLink}'>{$magicLink}</a></p>
+                                <br>
+                                <p>Regards,<br>Online Exam Portal</p>
+                             ";
+                             $res = $mailer->send($email, $name, $subject, $body);
+                             if ($res['success']) $emailCount++;
                         }
                         break;
                     }
@@ -126,7 +188,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["action"]) && $_POST["
         }
     }
     
-    if ($inserted > 0) $msg = "Successfully added $inserted students.";
+    if ($inserted > 0) {
+        $msg = "Successfully added $inserted students.";
+        if ($sendCreds) $msg .= " Sent $emailCount emails.";
+    }
     if ($failed > 0) $err = "Failed to add $failed rows (duplicates or errors).";
 }
 
@@ -399,66 +464,15 @@ function checkGender(current, otherId) {
 
 // Init with 3 rows
 window.addEventListener('DOMContentLoaded', () => {
-    // Check if empty, add initial rows
     if(document.getElementById("bulkRows").children.length === 0) {
         addStudentRow();
         addStudentRow();
         addStudentRow();
     }
 });
-// Clean up stray script tags above
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <script>
-// No global init, using per-call authorization below
-
-
-// Restore Registration Email Logic
-function sendWelcomeEmails(students) {
-    if (!students || students.length === 0) return;
-    
-    Swal.fire({
-        title: 'Sending Welcome Emails...',
-        text: `Processing ${students.length} students. Please wait...`,
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading()
-    });
-
-    let sent = 0;
-    let failed = 0;
-    
-    const sendNext = (index) => {
-        if (index >= students.length) {
-            Swal.fire({
-                icon: (failed === 0) ? 'success' : 'info',
-                title: 'Registration Complete',
-                text: `Successfully added students. Emails sent: ${sent}${failed > 0 ? ', Failed: ' + failed : ''}`
-            }).then(() => {
-                window.location.href = 'index.php?view=students';
-            });
-            return;
-        }
-
-        const s = students[index];
-        emailjs.send("<?= $ejs_srv_reg ?>", "<?= $ejs_tpl_reg ?>", {
-            to_name: s.name,
-            to_email: s.email,
-            password: s.password,
-            student_id: s.student_id
-        }, "<?= $ejs_pub_reg ?>").then(() => {
-            sent++;
-            sendNext(index + 1);
-        }).catch(err => {
-            console.error("Welcome email failed for", s.email, err);
-            failed++;
-            sendNext(index + 1);
-        });
-    };
-
-    sendNext(0);
-}
-
 // Improved Password Reset Logic
 function handleResetPassword(btn) {
     const id = btn.getAttribute('data-id');
@@ -496,32 +510,11 @@ function handleResetPassword(btn) {
             .then(r => r.json())
             .then(res => {
                 if(res.status === 'success') {
-                    // Send Email - Using dynamic reset-specific settings including Public Key
-                    const ejsParams = {
-                        to_name: name,
-                        to_email: email,
-                        password: res.new_pass
-                    };
-                    console.log("Attempting EmailJS Send:", {
-                        service: "<?= $ejs_srv_rst ?>",
-                        template: "<?= $ejs_tpl_rst ?>",
-                        public_key: "<?= $ejs_pub_rst ?>",
-                        params: ejsParams
-                    });
-                    
-                    emailjs.send("<?= $ejs_srv_rst ?>", "<?= $ejs_tpl_rst ?>", ejsParams, "<?= $ejs_pub_rst ?>").then(() => {
-                        // Success Redirect
-                        window.location.href = 'index.php?view=students&status=reset';
-                    }).catch(err => {
-                        console.error('EmailJS Failed:', err);
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Email Failed',
-                            text: 'The password was reset in the database, but the notification email failed to send.',
-                            footer: 'EmailJS Error: ' + (err.text || JSON.stringify(err))
-                        });
-                        // IMPORTANT: No redirect here to avoid false success message
-                    });
+                    if (res.warning) {
+                        Swal.fire('Warning', res.warning, 'warning');
+                    } else {
+                        Swal.fire('Success', 'Password reset and email sent.', 'success');
+                    }
                 } else {
                     Swal.fire('Error', res.message, 'error');
                 }
@@ -547,13 +540,6 @@ function confirmDelete(id, name) {
         }
     });
 }
-
-// Trigger Registration Emails if PHP processed a bulk add
-<?php if (!empty($newStudents)): ?>
-window.addEventListener('DOMContentLoaded', () => {
-    sendWelcomeEmails(<?= json_encode($newStudents) ?>);
-});
-<?php endif; ?>
 
 // --- Validation Logic ---
 const btnSave = document.querySelector('#modalBulkStudent button[type="submit"]');

@@ -13,4 +13,3 @@ if ($conn->connect_error) {
 // Set Timezone to Asia/Kathmandu for both PHP and MySQL
 date_default_timezone_set('Asia/Kathmandu');
 $conn->query("SET time_zone = '+05:45'");
-?>

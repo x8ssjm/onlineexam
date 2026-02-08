@@ -10,7 +10,7 @@ start_secure_session();
 require_admin();
 
 $activeView = $_GET["view"] ?? "dashboard";
-$valid = ["dashboard","banks","questions","students","groups","exams","live","scores","settings"];
+$valid = ["dashboard","banks","questions","students","groups","exams","live","scores"];
 if (!in_array($activeView, $valid, true)) $activeView = "dashboard";
 ?>
 <!doctype html>

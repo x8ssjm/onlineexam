@@ -10,10 +10,10 @@ $stats = [
 ];
 
 if (isset($conn)) {
-    // Ongoing exams count (based on student group + exams for everyone)
+    // Ongoing exams count (based on explicit assignment)
     $q_ongoing = "SELECT COUNT(*) FROM exams e 
-                  JOIN students s ON (e.group_id = s.group_id OR e.group_id IS NULL)
-                  WHERE s.id = $student_id 
+                  JOIN exam_assignments ea ON e.exam_id = ea.exam_id
+                  WHERE ea.student_id = $student_id 
                   AND NOW() BETWEEN e.start_time AND e.end_time";
     $res_ongoing = mysqli_query($conn, $q_ongoing);
     if($res_ongoing) $stats['ongoing'] = mysqli_fetch_row($res_ongoing)[0];

@@ -232,6 +232,7 @@ $timeLeft = $end - time();
     }
 
     function submitFinal() {
+        window.onbeforeunload = null;
         window.location.href = 'submit_exam.php?id=<?= $submission_id ?>';
     }
 

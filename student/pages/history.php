@@ -5,20 +5,12 @@ declare(strict_types=1);
 
 $student_id = (int)$_SESSION['student_id'];
 
-// 1. Get Student's Group ID for checking missed exams
-$group_res = mysqli_query($conn, "SELECT group_id FROM students WHERE id = $student_id");
-$student_group_row = mysqli_fetch_assoc($group_res);
-$my_group_id = $student_group_row['group_id'] ?? 0;
-// Handle NULL case for SQL safety (0 usually safely means 'no group' or specific ID, but for validation we need to be careful with NULLs in DB)
-$group_condition = $my_group_id ? "(e.group_id = $my_group_id OR e.group_id IS NULL OR e.group_id = 0)" : "(e.group_id IS NULL OR e.group_id = 0)";
-
-
-// 2. Fetch History using UNION
-// Part A: Exams the student actually attempted (Submission exists)
-// Part B: Exams the student missed (Assigned + Expired + No Submission)
+// 2. Fetch History using Explicit Assignments
+// We fetch all exams assigned to this student that are either:
+// a) Attempted (entry in exam_submissions)
+// b) Expired (end_time passed) -> these are "Missed" if not attempted
 
 $sql = "
-(
     SELECT 
         e.exam_id,
         e.title,
@@ -26,31 +18,19 @@ $sql = "
         e.passing_marks,
         qb.bank_name,
         es.score,
-        es.status as final_status, -- 'submitted' or 'ongoing'
+        COALESCE(es.status, IF(e.end_time < NOW(), 'missed', 'upcoming')) as final_status,
         es.end_time as submission_time
-    FROM exam_submissions es
-    JOIN exams e ON es.exam_id = e.exam_id
+    FROM exam_assignments ea
+    JOIN exams e ON ea.exam_id = e.exam_id
     LEFT JOIN question_banks qb ON e.bank_id = qb.bank_id
-    WHERE es.student_id = $student_id
-)
-UNION
-(
-    SELECT 
-        e.exam_id,
-        e.title,
-        e.end_time,
-        e.passing_marks,
-        qb.bank_name,
-        NULL as score,
-        'missed' as final_status,
-        NULL as submission_time
-    FROM exams e
-    LEFT JOIN question_banks qb ON e.bank_id = qb.bank_id
-    WHERE $group_condition
-    AND e.end_time < NOW()
-    AND e.exam_id NOT IN (SELECT exam_id FROM exam_submissions WHERE student_id = $student_id)
-)
-ORDER BY end_time DESC
+    LEFT JOIN exam_submissions es ON (e.exam_id = es.exam_id AND es.student_id = ea.student_id)
+    WHERE ea.student_id = $student_id
+    AND (
+        es.submission_id IS NOT NULL  -- Show if attempted (ongoing/submitted)
+        OR 
+        e.end_time < NOW()            -- Show if expired (missed)
+    )
+    ORDER BY e.end_time DESC
 ";
 
 $res = mysqli_query($conn, $sql);
