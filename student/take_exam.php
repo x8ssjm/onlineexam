@@ -37,6 +37,7 @@ if ($submission && $submission['status'] === 'submitted') {
     die("You have already submitted this exam.");
 }
 
+// algorithm:
 if (!$submission) {
     // Start new submission
     mysqli_query($conn, "INSERT INTO exam_submissions (exam_id, student_id, status) VALUES ($exam_id, $student_id, 'ongoing')");

@@ -22,6 +22,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['save_exam'])) {
     if ($weight < 0) { header("Location: index.php?view=exams&error=Question weight cannot be negative"); exit; }
     if ($negative < 0) { header("Location: index.php?view=exams&error=Negative marking cannot be negative"); exit; }
     
+    // Future date validation for NEW exams
+    if ($exam_id == 0 && strtotime($start_time) < time()) {
+        header("Location: index.php?view=exams&error=Exam start time must be in the future");
+        exit;
+    }
+    
     // Calculate end_time
     $end_time = date('Y-m-d H:i:s', strtotime("$start_time + $duration minutes"));
 
@@ -277,6 +283,7 @@ if ($banks_res) while($b = mysqli_fetch_assoc($banks_res)) $banks[] = $b;
             <div class="col-md-4">
                 <label class="form-label fw-bold">Start Date & Time</label>
                 <input type="datetime-local" name="start_time" id="exam_start" class="form-control" required>
+                <div id="time-error" class="invalid-feedback" style="display:none;"></div>
             </div>
             <div class="col-md-4">
                 <label class="form-label fw-bold">Weight/Question</label>
@@ -301,6 +308,16 @@ if ($banks_res) while($b = mysqli_fetch_assoc($banks_res)) $banks[] = $b;
 document.addEventListener('DOMContentLoaded', function() {
     const examModal = new bootstrap.Modal(document.getElementById('modalExam'));
 
+    let timeUpdateInterval;
+    function updateMinTime() {
+        const examId = document.getElementById('exam_id').value;
+        if (!examId || examId === "") {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('exam_start').setAttribute('min', now.toISOString().slice(0, 16));
+        }
+    }
+
     window.openAddExamModal = function() {
         document.getElementById('examModalTitle').textContent = "Schedule New Exam";
         document.getElementById('exam_id').value = "";
@@ -313,8 +330,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('exam_pass').value = "";
         document.getElementById('exam_weight').value = "1.0";
         document.getElementById('exam_neg').value = "0.0";
+        
+        updateMinTime();
+        if (timeUpdateInterval) clearInterval(timeUpdateInterval);
+        timeUpdateInterval = setInterval(updateMinTime, 30000); 
         examModal.show();
     }
+
+    document.getElementById('modalExam').addEventListener('hidden.bs.modal', function () {
+        if (timeUpdateInterval) clearInterval(timeUpdateInterval);
+    });
 
     window.openEditExamModal = function(e) {
         document.getElementById('examModalTitle').textContent = "Edit Exam Schedule";
@@ -326,6 +351,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Convert SQL datetime to datetime-local format (YYYY-MM-DDTHH:MM)
         const dt = e.start_time.replace(' ', 'T').substring(0, 16);
         document.getElementById('exam_start').value = dt;
+        // For edits, we don't strictly enforce min time to avoid locking out legitimate minor adjustments
+        document.getElementById('exam_start').removeAttribute('min');
         document.getElementById('exam_duration').value = e.duration;
         document.getElementById('exam_pass').value = e.passing_marks;
         document.getElementById('exam_weight').value = e.question_weight;
@@ -365,9 +392,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (weight <= 0) isValid = false;
         if (neg < 0) isValid = false;
 
-        // Date check (only for new exams or if changing start time to past)
-        // Simple check: Start time shouldn't be empty. 
-        // Strict future check is annoying for editing, so we trust reasonable inputs but block obviously empty ones.
+        // Date check: For new exams, start time must be in the future
+        const examId = document.getElementById('exam_id').value;
+        const timeError = document.getElementById('time-error');
+        if (!examId || examId === "") {
+            if (start) {
+                const now = new Date();
+                const selectedDate = new Date(start);
+                if (selectedDate <= now) {
+                    isValid = false;
+                    if (timeError) {
+                        timeError.textContent = "Start time must be in the future";
+                        timeError.style.display = "block";
+                    }
+                    document.getElementById('exam_start').classList.add('is-invalid');
+                } else {
+                    if (timeError) timeError.style.display = "none";
+                    document.getElementById('exam_start').classList.remove('is-invalid');
+                }
+            }
+        }
 
         if(btnSaveExam) {
             btnSaveExam.disabled = !isValid;
